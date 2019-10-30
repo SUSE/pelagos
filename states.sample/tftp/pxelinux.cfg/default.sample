@@ -1,0 +1,30 @@
+DEFAULT menu.c32
+PROMPT 0
+TIMEOUT 100
+MENU TIMEOUTROW 20
+
+
+LABEL Maintenance image opensuse leap 15.0
+  MENU DEFAULT
+    KERNEL boot/opensuse-leap-xxxxx-default.kernel
+    INITRD boot/opensuse-leap-xxxxxx.initrd.xz
+    APPEND console=tty1 console=ttyS1,115200 kiwiserver=1.2.3.4  ramdisk_size=2048000 disableProgressInfo=1 kiwidebug=1
+
+
+LABEL local
+  MENU LABEL Boot local hard drive
+  LOCALBOOT 0
+
+
+LABEL Test oem linux
+    KERNEL boot/pxeboot.kernel
+    INITRD boot/pxeboot.initrd.xz
+    APPEND  biosdevname=0 net.ifnames=0  rd.kiwi.install.pxe rd.kiwi.install.image=http://1.2.3.4/image/opensuse-leap-15.0.xz console=tty1 console=ttyS1,115200 kiwidebug=1
+    #MENU DEFAULT
+    # kiwi dracut debug lines
+    #rd.debug rd.kiwi.debug
+
+
+LABEL memtest86
+  MENU LABEL Memtest86+ 5.01
+  KERNEL /boot/memtest86+-5.01

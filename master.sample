@@ -1,0 +1,7 @@
+file_roots:
+  base:
+    - <abs path to salt states>/states
+
+pillar_roots:
+  base:
+    - <abs path to salt pillar>/pillar

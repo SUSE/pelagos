@@ -1,0 +1,16 @@
+[
+{
+    "node":         "ses-client-8",
+    "mac":          "ac:1f:6b:70:5f:9a",
+    "ip":           "10.162.230.18",
+    "ip_type":      "dynamic",
+    "hsm_mac":      "50:6b:4b:ff:5b:18",
+    "hsm_ip":       "192.168.101.18",
+    "hsm_ip_type":  "dynamic",
+    "bmc_mac":      "ac:1f:6b:70:5d:80",
+    "bmc_ip":       "10.162.230.118",
+    "bmc_ip_type":  "dynamic",
+    "role":         "client",
+    "comment":      ""
+  }
+]

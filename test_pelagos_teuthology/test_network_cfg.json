@@ -1,0 +1,102 @@
+[
+  {
+    "node":        "head",
+    "mac":         "ac:1f:6b:70:60:aa",
+    "ip":          "10.162.230.2",
+    "ip_type":     "static",
+    "bmc_mac":     "AC:1F:6B:70:5E:08",
+    "bmc_ip":      "10.162.230.102",
+    "bmc_ip_type": "static",
+    "role":        "",
+    "comment":     "dns, dhcp, tftp"
+  },
+  {
+    "node":         "test_node",
+    "mac":          "AC:1f:6b:70:68:73",
+    "ip":           "10.162.230.13",
+    "ip_type":      "dynamic",
+    "bmc_mac":      "ac:1f:6b:70:65:13",
+    "bmc_ip":       "10.162.230.123",
+    "bmc_ip_type":  "static",
+    "role":         "client",
+    "comment":      ""
+  },
+  {
+    "node":         "test_node2",
+    "mac":          "AC:1f:6b:70:68:74",
+    "ip":           "10.162.230.14",
+    "ip_type":      "dynamic",
+    "bmc_mac":      "ac:1f:6b:70:65:14",
+    "bmc_ip":       "10.162.230.124",
+    "bmc_ip_type":  "static",
+    "role":         "client",
+    "comment":      ""
+  },
+  {
+    "node":         "test_node3",
+    "mac":          "AC:1f:6b:70:68:75",
+    "ip":           "10.162.230.15",
+    "ip_type":      "dynamic",
+    "bmc_mac":      "ac:1f:6b:70:65:15",
+    "bmc_ip":       "10.162.230.125",
+    "bmc_ip_type":  "static",
+    "role":         "client",
+    "comment":      ""
+  },
+
+  {
+    "node":         "tnode1",
+    "mac":          "AC:1f:6b:70:68:21",
+    "ip":           "10.162.230.21",
+    "ip_type":      "dynamic",
+    "bmc_mac":      "ac:1f:6b:70:65:21",
+    "bmc_ip":       "10.162.230.221",
+    "bmc_ip_type":  "static",
+    "role":         "client",
+    "comment":      ""
+  },
+  {
+    "node":         "tnode2",
+    "mac":          "AC:1f:6b:70:68:22",
+    "ip":           "10.162.230.22",
+    "ip_type":      "dynamic",
+    "bmc_mac":      "ac:1f:6b:70:65:22",
+    "bmc_ip":       "10.162.230.222",
+    "bmc_ip_type":  "static",
+    "role":         "client",
+    "comment":      ""
+  },
+  {
+    "node":         "tnode3",
+    "mac":          "AC:1f:6b:70:68:23",
+    "ip":           "10.162.230.23",
+    "ip_type":      "dynamic",
+    "bmc_mac":      "ac:1f:6b:70:65:23",
+    "bmc_ip":       "10.162.230.223",
+    "bmc_ip_type":  "static",
+    "role":         "client",
+    "comment":      ""
+  },
+  {
+    "node":         "tnode4",
+    "mac":          "AC:1f:6b:70:68:24",
+    "ip":           "10.162.230.24",
+    "ip_type":      "dynamic",
+    "bmc_mac":      "ac:1f:6b:70:65:24",
+    "bmc_ip":       "10.162.230.224",
+    "bmc_ip_type":  "static",
+    "role":         "client",
+    "comment":      ""
+  },
+  {
+    "node":         "tnode5",
+    "mac":          "AC:1f:6b:70:68:25",
+    "ip":           "10.162.230.25",
+    "ip_type":      "dynamic",
+    "bmc_mac":      "ac:1f:6b:70:65:25",
+    "bmc_ip":       "10.162.230.225",
+    "bmc_ip_type":  "static",
+    "role":         "client",
+    "comment":      ""
+  }
+]

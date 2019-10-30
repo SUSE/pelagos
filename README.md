@@ -145,7 +145,7 @@ Warning! curl comamnds will be changed in few weeks
 
 for provision one node for testing boot could be use cmd. 'oem-' is important!
 
-    curl -i http://10.162.230.2:5000/pxe/api/node/provision/ses-client-8/oem-sle-15sp1-0.0.3
+    curl -i http://<server ip>:5000/pxe/api/node/provision/ses-client-8/oem-sle-15sp1-0.0.3
 
 for permanent switch os(with no version) install to latest image as default
 
@@ -153,7 +153,7 @@ for permanent switch os(with no version) install to latest image as default
 
  and next provision could be done via aliasing
 
-    curl -i http://10.162.230.2:5000/pxe/api/node/provision/ses-client-8/sle-15sp1
+    curl -i http://<server ip>:5000/pxe/api/node/provision/ses-client-8/sle-15sp1
 
  Use    'opensuse-leap-15.0' for defaut opensuse 15.0
 
@@ -170,7 +170,6 @@ Teuthology integration could be tested via  executing 2 commands:
     python bin/pelagos.py -c test_pelagos_teuthology/test_network_cfg.json --simulate=fast  --tftp-dir=/tmp/tftp 
 
 pytest test_pelagos.py -k test_create_5
-
 
 ## Notes
 
