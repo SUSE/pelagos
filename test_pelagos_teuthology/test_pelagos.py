@@ -40,7 +40,7 @@ class TestPelagios(object):
         nodelist_answer = obj.do_request('nodes', data='', method='GET')
         # print("----" + nodelist_answer.text)
         nodelist = json.loads(nodelist_answer.text)
-        assert len(nodelist['nodes']) == 4
+        assert len(nodelist['nodes']) == 9
 
     def test_create_negative(self):
         shutil.rmtree(test_pxelinux_cfg_root_dir, ignore_errors=True)

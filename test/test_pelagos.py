@@ -49,12 +49,13 @@ class pelagosTest(unittest.TestCase):
     def test_pxe_nodes(self):
         #response = self.app.get('/pxe/api/node/bootrecord/test_node/local')
         response = self.app.get('/nodes')
+        print(response)
         status = json.loads(response.get_data().decode(
             sys.getdefaultencoding()))
         logging.debug(status)
         self.assertEqual(
             status['nodes'][0]['mac'],
-            'ac:1f:6b:70:60:aa',
+            'aa:bb:cc:dd:00:aa',
             "check /nodes 1"
         )
         self.assertEqual(
@@ -70,7 +71,7 @@ class pelagosTest(unittest.TestCase):
         logging.debug(node['pxe'])
         self.assertEqual(
             node['node']['mac'],
-            'AC:1f:6b:70:68:73',
+            'AA:bb:cc:dd:00:73',
             "check /nodes"
         )
         self.assertEqual(
@@ -114,12 +115,12 @@ class pelagosTest(unittest.TestCase):
             sys.getdefaultencoding()))
         self.assertEqual(
             node['node']['mac'],
-            'AC:1f:6b:70:68:73',
+            'AA:bb:cc:dd:00:73',
             "check /node/bootrecord 1"
         )
 
         # calculate predefined name
-        pxe_file = test_pxelinux_cfg_dir + '/01-ac-1f-6b-70-68-73'
+        pxe_file = test_pxelinux_cfg_dir + '/01-aa-bb-cc-dd-00-73'
         self.assertTrue(os.path.isfile(pxe_file),
                         'Check pxe file existence')
         logging.debug("open created file for testing: " + pxe_file)
@@ -133,7 +134,7 @@ class pelagosTest(unittest.TestCase):
         logging.info("remove boot file and check it")
         response = self.app.get('/node/rmbootrecord/test_node')
         logging.warning(response.get_data().decode(sys.getdefaultencoding()))
-        pxe_file = test_pxelinux_cfg_dir + '/01-ac-1f-6b-70-68-7c'
+        pxe_file = test_pxelinux_cfg_dir + '/01-aa-bb-cc-dd-00-7c'
         self.assertFalse(os.path.isfile(pxe_file), 'Check pxe file absence')
 
     def do_flask_task_request(self,
@@ -237,20 +238,11 @@ class pelagosTest(unittest.TestCase):
         statuses = json.loads(statuses_r.get_data())
         # logging.debug("++++++++++++++++++++++++++++++++++++++" +
         #              str(statuses))
-        self.assertRegex(status21['node']['ip'], "10.162.230.13")
+        self.assertRegex(status21['node']['ip'], "1.2.3.13")
         self.assertRegex(status21['status'], 'done')
         self.assertRegex(statuses[id1]['status'], 'done')
-        self.assertRegex(status22['node']['ip'], "10.162.230.14")
-        self.assertRegex(status23['node']['ip'], "10.162.230.15")
-
-
-
-
-
-
-
-#    def test_pxe_nodes(self):
-#        response = self.app.get('pxe/api/v1.0/node/provision/test_node/')
+        self.assertRegex(status22['node']['ip'], "1.2.3.14")
+        self.assertRegex(status23['node']['ip'], "1.2.3.15")
 
 
 if __name__ == '__main__':

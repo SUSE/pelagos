@@ -20,6 +20,7 @@ class PxelinuxCfgTest(unittest.TestCase):
         os.makedirs(tftp_cfg_dir, exist_ok=True)
         os.makedirs(pxelinux_cfg_dir, exist_ok=True)
         pxelinux_cfg.tftp_cfg_dir = tftp_cfg_dir
+        pxelinux_cfg.default_pxe_server="1.2.3.4"
 
         pxelinux_cfg.pxelinux_cfg_dir = pxelinux_cfg_dir
         shutil.rmtree(pxelinux_cfg.pxelinux_cfg_dir, ignore_errors=True)
@@ -62,7 +63,7 @@ class PxelinuxCfgTest(unittest.TestCase):
         mac_file = pxelinux_cfg.get_macfile(node)
         self.assertEqual(mac_file,
                          pxelinux_cfg.pxelinux_cfg_dir +
-                         '/01-ac-1f-6b-70-68-73',
+                         '/01-aa-bb-cc-dd-00-73',
                          'mac file calculation check')
 
         pxelinux_cfg.set_tftp_dir(node, 'local')
@@ -95,7 +96,7 @@ class PxelinuxCfgTest(unittest.TestCase):
                          'check os specific generated data #2')
         self.assertRegex(cfg,
                          'rd.kiwi.install.pxe\s+rd.kiwi.install.image='
-                         'http://10.162.230.2/oem-sle_15sp1/'
+                         'http://1.2.3.4/oem-sle_15sp1/'
                          'sle_15sp1.xz\s+console=tty1',
                          'check os specific generated data #3')
 

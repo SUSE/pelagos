@@ -11,6 +11,10 @@ class pxelinux_cfg_test(unittest.TestCase):
 
     def test_hw_node_ipmitool(self):
         network_manager.data_file = 'test/test_network_cfg.json'
+        hw_node.ipmi_user = network_manager.get_option('ipmi_user')
+        hw_node.ipmi_pass = network_manager.get_option('ipmi_pass')
+
+
         node = network_manager.get_node_by_name('test_node')
 
         cmd = hw_node.get_ipmi_cycle_cmd('1.2.3.4', 'user', 'password')
@@ -20,15 +24,16 @@ class pxelinux_cfg_test(unittest.TestCase):
         hw_node.ipmitool_bin = 'echo'
         hw_node.power_cycle(node)
 
-    def test_hw_conman(self):
-        network_manager.data_file = 'test/test_network_cfg.json'
-        node = network_manager.get_node_by_name('test_node')
-        cmd = hw_node.get_conman_cmd('1.2.3.4', 'test_node')
-        self.assertEqual(cmd,
-                         "conman -d 1.2.3.4 -j test_node"
-                         )
-        hw_node.conman_bin = 'echo  login: '
-        hw_node.wait_node_is_ready(node)
+    #TODO should be used when conman suppot added to teuthology
+    #def test_hw_conman(self):
+    #    network_manager.data_file = 'test/test_network_cfg.json'
+    #    node = network_manager.get_node_by_name('test_node')
+    #    cmd = hw_node.get_conman_cmd('1.2.3.4', 'test_node')
+    #    self.assertEqual(cmd,
+    #                     "conman -d 1.2.3.4 -j test_node"
+    #                     )
+    #    hw_node.conman_bin = 'echo  login: '
+    #    hw_node.wait_node_is_ready(node)
     
     # comment it because it is should do activity on a node
     #def test_salt_rub(self):

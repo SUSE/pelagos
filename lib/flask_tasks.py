@@ -83,58 +83,52 @@ def async_task(f):
             with app.request_context(environ):
                 try:
                     # Run the route function and record the response
-                    logging.debug("____________________________")
                     logging.debug("Executing target function")
-                    tasks[id]['started'] = True
-                    tasks[id]['rv'] = f(*args, **kwargs)
-                    tasks[id]['status'] = 'done'
+                    tasks[task_id]['starttime'] = timestamp()
+                    tasks[task_id]['endtime'] = -1
+                    tasks[task_id]['started'] = True
+                    tasks[task_id]['rv'] = f(*args, **kwargs)
+                    tasks[task_id]['status'] = 'done'
                     logging.debug("target function completed")
-                    logging.debug("____________________________")
                 except HTTPException as e:
                     logging.debug("Caught http exception:" + str(e))
-                    tasks[id]['rv'] = current_app.handle_http_exception(e)
+                    tasks[task_id]['rv'] = current_app.handle_http_exception(e)
                     traceback.print_exc(file=sys.stdout)
                 except Exception as e:
                     logging.debug("Caught exception:" + str(e))
                     # The function raised an exception, so we set a 500 error
-                    tasks[id]['rv'] = InternalServerError()
+                    tasks[task_id]['rv'] = InternalServerError()
                     traceback.print_exc(file=sys.stdout)
-
-            #                    if current_app.debug:
-#                        # We want to find out if something happened so reraise
-#                        raise
                 finally:
                     # We record the time of the response, to help in garbage
                     # collecting old tasks
-                    tasks[id]['endtime'] = timestamp()
+                    tasks[task_id]['endtime'] = timestamp()
 
         # Assign an id to the asynchronous task
-        id = uuid.uuid4().hex
+        task_id = uuid.uuid4().hex
 
         # Record the task, and then launch it
         #tasks[id]['started'] = False
-        tasks[id] = {'task': threading.Thread(
+        tasks[task_id] = {'task': threading.Thread(
             target=task, args=(current_app._get_current_object(),
                                request.environ))}
-        tasks[id]['task'].start()
-        tasks[id]['starttime'] = timestamp()
-        tasks[id]['endtime'] = -1
+        tasks[task_id]['task'].start()
         # wait is needed for case when many requests is done
         # and new thread starting took time
         i = 0
         while i < 30:
             i = i + 1
-            if 'started' in tasks[id]:
+            if 'started' in tasks[task_id]:
                 break
             time.sleep(1)
-        if not 'started' in tasks[id]:
-            tasks[id]['rv'] = InternalServerError("Too long async thread starts")
+        if not 'started' in tasks[task_id]:
+            tasks[task_id]['rv'] = InternalServerError("Too long async thread starts")
             traceback.print_exc(file=sys.stdout)
 
         # Return a 202 response, with a link that the client can use to
         # obtain task status
-        return '', 202, {'Location': url_for('tasks.get_status', id=id),
-                         'TaskID': id}
+        return '', 202, {'Location': url_for('tasks.get_status', id=task_id),
+                         'TaskID': task_id}
     return wrapped
 
 

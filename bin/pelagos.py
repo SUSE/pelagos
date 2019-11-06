@@ -22,7 +22,7 @@ app = Flask('pelagos')
 # Register async tasks support
 app.register_blueprint(tasks_blueprint, url_prefix='/tasks')
 app.ver_name='pelagos'
-app.version = '0.0.2'
+app.version = '0.0.3'
 app.simulate_mode = ''
 
 
@@ -69,9 +69,9 @@ def get_version():
 @app.route('/nodes', methods=['GET'])
 def get_nodes():
     app.logger.info('Get all nodes information')
-    nodes = network_manager.load_data_file()
+    nodes = network_manager.get_nodes()
     return jsonify(
-        {'nodes': network_manager.load_data_file(),
+        {'nodes': nodes,
             'pxe': pxelinux_cfg.get_pxe_map(nodes)})
 
 
@@ -182,6 +182,13 @@ if __name__ == '__main__':
             pxelinux_cfg.tftp_cfg_dir = arg
             pxelinux_cfg.pxelinux_cfg_dir = \
                 pxelinux_cfg.tftp_cfg_dir + '/pxelinux.cfg'
+
+    pxelinux_cfg.default_pxe_server  = network_manager.get_option(
+        'default_pxe_server')    
+    hw_node.ipmi_user = network_manager.get_option('ipmi_user')
+    hw_node.ipmi_pass = network_manager.get_option('ipmi_pass')
+    hw_node.target_pass = network_manager.get_option(
+        'target_node_password')
 
     app.run(debug=True, host='0.0.0.0', threaded=True)
         # False, processes=10)
