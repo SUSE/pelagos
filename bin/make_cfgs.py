@@ -40,7 +40,7 @@ parser = argparse.ArgumentParser(description=description,
         formatter_class=argparse.RawDescriptionHelpFormatter)
 
 
-def reorder_ip(ip):
+def reverse_ip(ip):
     ip_split = re.search('(\d+)\.(\d+)\.(\d+)\.(\d+)', ip)
     print("ip_split:")
     print(ip_split.groups())
@@ -79,11 +79,6 @@ args = parser.parse_args()
 
 network_manager.data_file = args.config_file
 nodes = network_manager.get_nodes()
-try:
-    os.mkdir(args.target_dir)
-except FileExistsError:
-    # it is ok if dir already exists
-    pass
 
 target_dir_prefix = args.target_dir + "/"
 
@@ -106,7 +101,7 @@ for n in nodes:
         pxe_node_lines.append("dhcp-host={},{},{}"
                           .format(n['mac'], hn(n['node']), n['ip']))
         pxe_node_ptr_lines.append("ptr-record={}.in-addr.arpa,{}.{}"
-                              .format(reorder_ip(n['ip']),
+                              .format(reverse_ip(n['ip']),
                                       hn(n['node']),
                                       domain))
 
@@ -114,7 +109,7 @@ for n in nodes:
         pxe_node_lines.append("dhcp-host={},{}-bmc,{}"
                           .format(n['bmc_mac'], hn(n['node']), n['bmc_ip']))
         pxe_node_ptr_lines.append("ptr-record={}.in-addr.arpa,{}-bmc.{}"
-                              .format(reorder_ip(n['bmc_ip']),
+                              .format(reverse_ip(n['bmc_ip']),
                                       hn(n['node']),
                                       domain
                                       ))
@@ -123,7 +118,7 @@ for n in nodes:
         pxe_node_lines.append("dhcp-host={},{}-hsm,{}"
                           .format(n['hsm_mac'], hn(n['node']), n['hsm_ip']))
         pxe_node_ptr_lines.append("ptr-record={}.in-addr.arpa,{}-hsm"
-                              .format(reorder_ip(n['hsm_ip']), hn(n['node'])))
+                              .format(reverse_ip(n['hsm_ip']), hn(n['node'])))
 
     consoles = consoles +\
                "\nCONSOLE name=\"{}\" IPMIOPTS=\"U:{},P:{}\" dev=\"ipmi:{}\""\

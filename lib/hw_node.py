@@ -51,13 +51,12 @@ def power_cycle(node):
 # localhost login
 def wait_node_is_ready(node, timeout=5, attempts=120):
     local = LocalNode()
-    local.hostname = 'local'
     local.wait_for_port(host=node['ip'], timeout=timeout, attempts=attempts)
 
 
 def minimal_needed_configuration(node, timeout=60):
     for sls in ["setup_hsm", "configure_services"]:
-        local = LocalNode(hostname='local')
+        local = LocalNode()
         local.pwd()
         local.shell('salt-ssh -i --roster-file ' + roster_file +
                     ' -c .  --no-host-keys --key-deploy --passwd ' +
