@@ -20,7 +20,7 @@ test_config = dict(pelagos=dict(
 test_pxelinux_cfg_root_dir = '/tmp/tftp'
 test_pxelinux_cfg_dir = test_pxelinux_cfg_root_dir + '/pxelinux.cfg'
 
-class TestPelagios(object):
+class TestPelagos(object):
     klass = pelagos.Pelagos
 
     def setup(self):

@@ -24,12 +24,6 @@ Probably disto packages could be used.
 
     pip install salt flask pytest jsonify
 
-### Prepare salt env
-
-Copy salt master file and correct it
-
-    cp master.sample master
-
 ### Configure ssh password-less access
 
 in `~/.ssh/config` add
@@ -42,7 +36,7 @@ in `~/.ssh/config` add
 
 and also add proper keys
 
-### Prepare main configuration
+### Prepare Pelagos configuration file
 
 Configuration should include both service node and provisioned nodes.
 It described in json file (# xxx means comment and should removed):
@@ -52,9 +46,11 @@ It described in json file (# xxx means comment and should removed):
     "ipmi_user": "root",
     "ipmi_pass": "password",
     "target_node_password": "password",
+    # record for maintenance pxe records
     "maintenance_image_kernel": "opensuse-leap-15.0.x86_64-0.0.1-4.12.14-lp150.11-default.kernel",
     "maintenance_image_initrd": "opensuse-leap-15.0-image.x86_64-0.0.1.initrd.xz",
     "default_pxe_server": "127.0.0.1",
+    "domain": "a.b.c.de"
     "nodes":[
         {
             "node":        "provisioner.a.b.c", # fqdn
@@ -82,9 +78,18 @@ It described in json file (# xxx means comment and should removed):
 
 ### Run service configuration generator
 
-    python bin/make_cfgs_for_nodes.py
+_It is optional step and configuration could be provided
+manually_
 
-List of produced configuration files:
+Prepare  directory for configuration files, e.g. copy from sample
+    cp -r states.sample <cfg dir>
+
+and edit it.
+Next is generating configuration files based on Pelagos configuration file
+
+    python bin/make_cfgs_for_nodes.py -c <pelagos cfg file> -d <cfg dir>
+
+List of produced configuration files in target dir:
 
 * dnsmasq configuration
 
@@ -98,6 +103,18 @@ List of produced configuration files:
     states/etc/conman.conf
 
 * teuthology sql script for create nodes
+
+### Prepare salt env
+
+_It is optional step and configuration could be provided
+manually_
+
+Copy salt master file and correct it with adding directory with configuration
+ files (see below)
+
+    cp master.sample master
+
+Add to 'states' cfg directory with generated files
 
 ### Run remote node configuration
 
@@ -132,6 +149,8 @@ old-style BIOS boot:
 TBD
 
 ## BUILD
+
+TODO provide kiwi samples 
 
 as root on build node:
 

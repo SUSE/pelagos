@@ -57,8 +57,7 @@ def wait_node_is_ready(node, timeout=5, attempts=120):
 
 def minimal_needed_configuration(node, timeout=60):
     for sls in ["setup_hsm", "configure_services"]:
-        local = LocalNode()
-        local.hostname = 'local'
+        local = LocalNode(hostname='local')
         local.pwd()
         local.shell('salt-ssh -i --roster-file ' + roster_file +
                     ' -c .  --no-host-keys --key-deploy --passwd ' +

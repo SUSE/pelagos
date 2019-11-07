@@ -19,7 +19,7 @@ def get_option(opt_name):
 
 def get_nodes():
     return load_data_file()['nodes']
-    
+
 def get_node_by_name(name, exception=True):
     for n in load_data_file()['nodes']:
         logging.debug('Process node: ' + n['node'])

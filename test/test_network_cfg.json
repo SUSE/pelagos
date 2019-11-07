@@ -6,6 +6,7 @@
   "maintenance_image_kernel": "opensuse-leap-15.0.x86_64-0.0.1-4.12.14-lp150.11-default.kernel",
   "maintenance_image_initrd": "opensuse-leap-15.0-image.x86_64-0.0.1.initrd.xz",
   "default_pxe_server": "127.0.0.1",
+  "domain": "suse.de",
 
   "nodes":[
   {
