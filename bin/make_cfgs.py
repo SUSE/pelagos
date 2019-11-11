@@ -40,14 +40,8 @@ parser = argparse.ArgumentParser(description=description,
         formatter_class=argparse.RawDescriptionHelpFormatter)
 
 
-def reverse_ip(ip):
-    ip_split = re.search('(\d+)\.(\d+)\.(\d+)\.(\d+)', ip)
-    print("ip_split:")
-    print(ip_split.groups())
-    return ip_split.groups()[3] + '.'\
-           + ip_split.groups()[2] + '.'\
-           + ip_split.groups()[1] + '.'\
-           + ip_split.groups()[0]
+def reversed_ip(ip):
+    return '.'.join(reversed(ip.split('.')))
 
 # get host name from probably fqdn
 def hn(name):
@@ -101,7 +95,7 @@ for n in nodes:
         pxe_node_lines.append("dhcp-host={},{},{}"
                           .format(n['mac'], hn(n['node']), n['ip']))
         pxe_node_ptr_lines.append("ptr-record={}.in-addr.arpa,{}.{}"
-                              .format(reverse_ip(n['ip']),
+                              .format(reversed_ip(n['ip']),
                                       hn(n['node']),
                                       domain))
 
@@ -109,7 +103,7 @@ for n in nodes:
         pxe_node_lines.append("dhcp-host={},{}-bmc,{}"
                           .format(n['bmc_mac'], hn(n['node']), n['bmc_ip']))
         pxe_node_ptr_lines.append("ptr-record={}.in-addr.arpa,{}-bmc.{}"
-                              .format(reverse_ip(n['bmc_ip']),
+                              .format(reversed_ip(n['bmc_ip']),
                                       hn(n['node']),
                                       domain
                                       ))
@@ -118,7 +112,7 @@ for n in nodes:
         pxe_node_lines.append("dhcp-host={},{}-hsm,{}"
                           .format(n['hsm_mac'], hn(n['node']), n['hsm_ip']))
         pxe_node_ptr_lines.append("ptr-record={}.in-addr.arpa,{}-hsm"
-                              .format(reverse_ip(n['hsm_ip']), hn(n['node'])))
+                              .format(reversed_ip(n['hsm_ip']), hn(n['node'])))
 
     consoles = consoles +\
                "\nCONSOLE name=\"{}\" IPMIOPTS=\"U:{},P:{}\" dev=\"ipmi:{}\""\
