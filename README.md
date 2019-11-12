@@ -4,7 +4,7 @@ Pelagios is artless pxe boot and provisioning system which created especially
 for connecting bare metal nodes to ceph/teuthology testing system
 
 It based on ideas:
-  
+
 * boot images should ready for boot, if you need provisioning use kiwi oem images
 
 * boot process could be controlled and observed via REST interfaces
@@ -42,7 +42,7 @@ Configuration should include both service node and provisioned nodes.
 It described in json file (# xxx means comment and should removed):
 
     {
-    
+
     "ipmi_user": "root",
     "ipmi_pass": "password",
     "target_node_password": "password",
@@ -56,8 +56,8 @@ It described in json file (# xxx means comment and should removed):
             "node":        "provisioner.a.b.c", # fqdn
             "ip_type":     "unmanaged", # configuration generator ignore that address
             "bmc_ip_type": "unmanaged", # ditto
-            "role":        "", 
-            "comment":     "dns, dhcp, tftp", 
+            "role":        "",
+            "comment":     "dns, dhcp, tftp",
             "t_machine_type": "",
             "t_exclude": "yes" #ignore for teuthology node description generation
         },
@@ -69,9 +69,9 @@ It described in json file (# xxx means comment and should removed):
             "bmc_mac":      "aa:bb:cc:dd:ff:11", # bmc mac address if need
             "bmc_ip":       "10.11.12.111",      # bmc ip address
             "bmc_ip_type":  "dynamic",           # generate dhcp record for it
-            "role":         "client",            # 
+            "role":         "client",            #
             "comment":      "",
-            "t_machine_type": "t-client",        # generate sql record for teuthology 
+            "t_machine_type": "t-client",        # generate sql record for teuthology
             "t_exclude": "no"
         }
     }
@@ -82,12 +82,13 @@ _It is optional step and configuration could be provided
 manually_
 
 Prepare  directory for configuration files, e.g. copy from sample
-    cp -r states.sample <cfg dir>
+    cp -r states.sample <cfg dir>/states
 
-and edit it.
+
+and edit it. Add pillar directory if needed.
 Next is generating configuration files based on Pelagos configuration file
 
-    python bin/make_cfgs_for_nodes.py -c <pelagos cfg file> -d <cfg dir>
+    bin/make_cfgs.py -c <pelagos cfg file> -d <cfg dir>
 
 List of produced configuration files in target dir:
 
@@ -194,7 +195,7 @@ for permanent switch os(with no version) install to latest image as default
 
 Unit tests are in 'test'  subdir and could be executed via
 
-    python test/test_pelagos.py 
+    python test/test_pelagos.py
 
 ### Integration test
 
@@ -202,7 +203,7 @@ Teuthology integration could be tested via  executing 2 commands:
 
 1. Run Pelagos in python pelgos env
 
-        python bin/pelagos.py -c test_pelagos_teuthology/test_network_cfg.json --simulate=fast  --tftp-dir=/tmp/tftp 
+        python bin/pelagos.py -c test_pelagos_teuthology/test_network_cfg.json --simulate=fast  --tftp-dir=/tmp/tftp
 
 2. Run test in teuthology env with adding teuthology lib
 
