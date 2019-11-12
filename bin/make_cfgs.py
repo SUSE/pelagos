@@ -5,20 +5,20 @@ import argparse
 import os
 import network_manager
 
-description = """ 
+description = """
 Generates configs based on templates for services and pelagos configuration file
 
-for dnsmasq generates a file 
+for dnsmasq generates a file
     <target dir>/etc/dnsmasq/dnsmasq.d/network_nodes.conf
 with records like this
- 
+
     ...
     dhcp-host=aa:bb:cc:dd:68:7c,ses-client-3,1.2.3.13
     ...
     ptr-record=13.3.2.1.in-addr.arpa,ses-client-3.a.b.de
     ...
 
-for conman generates file <target dir>/states/etc/conman.conf  based on 
+for conman generates file <target dir>/states/etc/conman.conf  based on
 template  <target dir>states/etc/conman.conf.tmpl with records like this
 
     CONSOLE name="ses-client-3" IPMIOPTS="U:<user>,P:<pass>" dev="ipmi:<ipmi server>"

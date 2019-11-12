@@ -8,11 +8,30 @@ import time
 import sys
 import logging
 import getopt
+import argparse
 
 import network_manager
 import pxelinux_cfg
 import hw_node
 
+description = """
+
+REST service which control nodes provisiong via ipmi protocol.
+It also do some manipulation with tftp/pxe files
+
+"""
+parser = argparse.ArgumentParser(description=description,
+        formatter_class=argparse.RawDescriptionHelpFormatter)
+
+parser.add_argument('--config', dest='config', required=True,
+                    help='Path to pelagos configuration file')
+
+parser.add_argument('--tftpdir', dest='tftp_dir', required=True,
+                    help='tftp root directory')
+
+parser.add_argument('--simulation', dest='simulation', default='',
+                    help='Simulation mode, "fast" or "medium" supported now, ' +
+                     'used for testing')
 
 logging.basicConfig(format='%(asctime)s | %(name)s | %(message)s',
                     level=logging.DEBUG)
@@ -149,42 +168,23 @@ def print_help():
 
 
 if __name__ == '__main__':
-    try:
+    args = parser.parse_args()
+    network_manager.data_file = args.config
+    print("Set configuration file: " + network_manager.data_file)
 
-        opts, args = getopt.getopt(sys.argv[1:],
-                                   "hc:",
-                                   ["config=",
-                                    "simulate=",
-                                    "tftp-dir="])
-    except getopt.GetoptError:
-        print('Parameters parsing error!')
-        print_help()
-        sys.exit(2)
+    pxelinux_cfg.tftp_cfg_dir = args.tftp_dir
+    print("Set PXE and TFTP dir to:" + pxelinux_cfg.tftp_cfg_dir)
+    pxelinux_cfg.pxelinux_cfg_dir = \
+        pxelinux_cfg.tftp_cfg_dir + '/pxelinux.cfg'
 
-    if len(opts) == 0:
-        print('No parameters set!')
-        print_help()
-        sys.exit(2)
-
-    for opt, arg in opts:
-        if opt == '-h':
-            print_help()
-            sys.exit()
-        elif opt in ("-c", "--config"):
-            #TODO make it obligatory
-            print("Set configuration file: " + arg)
-            network_manager.data_file = arg
-        elif opt in ("--simulate"):
-            print("Set simulate mode to :" + arg)
-            app.simulate_mode=arg
-        elif opt in ("--tftp-dir"):
-            print("Set PXE and TFTP dir to:" + arg)
-            pxelinux_cfg.tftp_cfg_dir = arg
-            pxelinux_cfg.pxelinux_cfg_dir = \
-                pxelinux_cfg.tftp_cfg_dir + '/pxelinux.cfg'
+    app.simulate_mode=args.simulation
+    if app.simulate_mode:
+        print("Set simulate mode to :" + app.simulate_mode)
+    else:
+        print("Set production mode")
 
     pxelinux_cfg.default_pxe_server  = network_manager.get_option(
-        'default_pxe_server')    
+        'default_pxe_server')
     hw_node.ipmi_user = network_manager.get_option('ipmi_user')
     hw_node.ipmi_pass = network_manager.get_option('ipmi_pass')
     hw_node.target_pass = network_manager.get_option(
