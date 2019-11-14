@@ -185,10 +185,8 @@ if __name__ == '__main__':
 
     pxelinux_cfg.default_pxe_server  = network_manager.get_option(
         'default_pxe_server')
-    hw_node.ipmi_user = network_manager.get_option('ipmi_user')
-    hw_node.ipmi_pass = network_manager.get_option('ipmi_pass')
-    hw_node.target_pass = network_manager.get_option(
-        'target_node_password')
+
+    hw_node.init()
 
     app.run(debug=True, host='0.0.0.0', threaded=True)
         # False, processes=10)

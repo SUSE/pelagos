@@ -117,7 +117,7 @@ Copy salt master file and correct it with adding directory with configuration
 
 Add to 'states' cfg directory with generated files
 
-### Run remote node configuration
+### Run pxe node remote configuration
 
 Prepare host which will be used for PXE services setup
 
