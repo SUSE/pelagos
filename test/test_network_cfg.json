@@ -1,0 +1,57 @@
+{
+  
+  "ipmi_user": "root",
+  "ipmi_pass": "password",
+  "target_node_password": "password",
+  "maintenance_image_kernel": "opensuse-leap-15.0.x86_64-0.0.1-4.12.14-lp150.11-default.kernel",
+  "maintenance_image_initrd": "opensuse-leap-15.0-image.x86_64-0.0.1.initrd.xz",
+  "default_pxe_server": "127.0.0.1",
+  "domain": "suse.de",
+
+  "nodes":[
+  {
+    "node":        "head",
+    "mac":         "aa:bb:cc:dd:00:aa",
+    "ip":          "1.2.3.2",
+    "ip_type":     "static",
+    "bmc_mac":     "AA:BB:CC:DD:00:08",
+    "bmc_ip":      "1.2.3.102",
+    "bmc_ip_type": "static",
+    "role":        "",
+    "comment":     "dns, dhcp, tftp"
+  },
+  {
+    "node":         "test_node",
+    "mac":          "AA:bb:cc:dd:00:73",
+    "ip":           "1.2.3.13",
+    "ip_type":      "dynamic",
+    "bmc_mac":      "aa:bb:cc:dd:00:13",
+    "bmc_ip":       "1.2.3.123",
+    "bmc_ip_type":  "static",
+    "role":         "client",
+    "comment":      ""
+  },
+  {
+    "node":         "test_node2",
+    "mac":          "AA:bb:cc:dd:00:74",
+    "ip":           "1.2.3.14",
+    "ip_type":      "dynamic",
+    "bmc_mac":      "aa:bb:cc:dd:00:14",
+    "bmc_ip":       "1.2.3.114",
+    "bmc_ip_type":  "static",
+    "role":         "client",
+    "comment":      ""
+  },
+  {
+    "node":         "test_node3",
+    "mac":          "AA:bb:cc:dd:00:75",
+    "ip":           "1.2.3.15",
+    "ip_type":      "dynamic",
+    "bmc_mac":      "aa:bb:cc:dd:00:15",
+    "bmc_ip":       "1.2.3.115",
+    "bmc_ip_type":  "static",
+    "role":         "client",
+    "comment":      ""
+  }
+ ]
+}

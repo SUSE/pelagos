@@ -4,7 +4,7 @@ Pelagios is artless pxe boot and provisioning system which created especially
 for connecting bare metal nodes to ceph/teuthology testing system
 
 It based on ideas:
-  
+
 * boot images should ready for boot, if you need provisioning use kiwi oem images
 
 * boot process could be controlled and observed via REST interfaces
@@ -24,12 +24,6 @@ Probably disto packages could be used.
 
     pip install salt flask pytest jsonify
 
-### Prepare salt env
-
-Copy salt master file and correct it
-
-    cp master.sample master
-
 ### Configure ssh password-less access
 
 in `~/.ssh/config` add
@@ -42,39 +36,61 @@ in `~/.ssh/config` add
 
 and also add proper keys
 
-### Prepare main configuration
+### Prepare Pelagos configuration file
 
 Configuration should include both service node and provisioned nodes.
 It described in json file (# xxx means comment and should removed):
 
     {
-        "node":        "provisioner.a.b.c", # fqdn
-        "ip_type":     "unmanaged", # configuration generator ignore that address
-        "bmc_ip_type": "unmanaged", # ditto
-        "role":        "", 
-        "comment":     "dns, dhcp, tftp", 
-        "t_machine_type": "",
-        "t_exclude": "yes" #ignore for teuthology node description generation
-    },
-    {
-        "node":         "client-1.a.b.c",
-        "mac":          "aa:bb:cc:dd:ee:11", # mac address in management network
-        "ip":           "10.11.12.11",       # ip address in management address
-        "ip_type":      "dynamic",           # generate dhcp record for it
-        "bmc_mac":      "aa:bb:cc:dd:ff:11", # bmc mac address if need
-        "bmc_ip":       "10.11.12.111",      # bmc ip address
-        "bmc_ip_type":  "dynamic",           # generate dhcp record for it
-        "role":         "client",            # 
-        "comment":      "",
-        "t_machine_type": "t-client",        # generate sql record for teuthology 
-        "t_exclude": "no"
-    },
+
+    "ipmi_user": "root",
+    "ipmi_pass": "password",
+    "target_node_password": "password",
+    # record for maintenance pxe records
+    "maintenance_image_kernel": "opensuse-leap-15.0.x86_64-0.0.1-4.12.14-lp150.11-default.kernel",
+    "maintenance_image_initrd": "opensuse-leap-15.0-image.x86_64-0.0.1.initrd.xz",
+    "default_pxe_server": "127.0.0.1",
+    "domain": "a.b.c.de"
+    "nodes":[
+        {
+            "node":        "provisioner.a.b.c", # fqdn
+            "ip_type":     "unmanaged", # configuration generator ignore that address
+            "bmc_ip_type": "unmanaged", # ditto
+            "role":        "",
+            "comment":     "dns, dhcp, tftp",
+            "t_machine_type": "",
+            "t_exclude": "yes" #ignore for teuthology node description generation
+        },
+        {
+            "node":         "client-1.a.b.c",
+            "mac":          "aa:bb:cc:dd:ee:11", # mac address in management network
+            "ip":           "10.11.12.11",       # ip address in management address
+            "ip_type":      "dynamic",           # generate dhcp record for it
+            "bmc_mac":      "aa:bb:cc:dd:ff:11", # bmc mac address if need
+            "bmc_ip":       "10.11.12.111",      # bmc ip address
+            "bmc_ip_type":  "dynamic",           # generate dhcp record for it
+            "role":         "client",            #
+            "comment":      "",
+            "t_machine_type": "t-client",        # generate sql record for teuthology
+            "t_exclude": "no"
+        }
+    }
 
 ### Run service configuration generator
 
-    python bin/make_cfgs_for_nodes.py
+_It is optional step and configuration could be provided
+manually_
 
-List of produced configuration files:
+Prepare  directory for configuration files, e.g. copy from sample
+    cp -r states.sample <cfg dir>/states
+
+
+and edit it. Add pillar directory if needed.
+Next is generating configuration files based on Pelagos configuration file
+
+    bin/make_cfgs.py -c <pelagos cfg file> -d <cfg dir>
+
+List of produced configuration files in target dir:
 
 * dnsmasq configuration
 
@@ -87,11 +103,25 @@ List of produced configuration files:
 * conman configuration file  (from template  states/etc/conman.conf.tmpl)
     states/etc/conman.conf
 
-### Run remote node configuration.
+* teuthology sql script for create nodes
+
+### Prepare salt env
+
+_It is optional step and configuration could be provided
+manually_
+
+Copy salt master file and correct it with adding directory with configuration
+ files (see below)
+
+    cp master.sample master
+
+Add to 'states' cfg directory with generated files
+
+### Run pxe node remote configuration
 
 Prepare host which will be used for PXE services setup
 
-    sudo -u salt salt-ssh -i --roster-file nue_deploy.roster -c . 'head' '*' state.apply prepare -v  
+    sudo -u salt salt-ssh -i --roster-file  deploy.roster -c . 'pxe node node' '*' state.apply prepare -v
 
 ### Boot directory preparation
 
@@ -121,6 +151,8 @@ TBD
 
 ## BUILD
 
+TODO provide kiwi samples 
+
 as root on build node:
 
     cd kiwi/<distro>
@@ -137,40 +169,45 @@ as user on build node:
 
 For manual node configuration could be used salt commands:
 
-    sudo -u salt salt-ssh -i --roster-file nue_deploy.roster --key-deploy --passwd <password> -c . '<node name without domain>' state.apply setup_hsm
+    sudo -u salt salt-ssh -i --roster-file deploy.roster --key-deploy --passwd <password> -c . '<node name without domain>' state.apply setup_hsm
 
-**PROVISION**   
+## Provision
 
-Warning! curl comamnds will be changed in few weeks
+Warning! curl commands is subject for change
+    os = request.form['os']
+    node_id = request.form['node']
 
-for provision one node for testing boot could be use cmd. 'oem-' is important!
+For provision one node for testing boot could be use cmd.
 
-    curl -i http://10.162.230.2:5000/pxe/api/node/provision/ses-client-8/oem-sle-15sp1-0.0.3
+        curl -i http://<server ip>:5000/node/provision -X POST -d {"os":"<dir name from tftp>", "node":"<nodename from configuration>"}
+
+Provisioning status could be observed
+
+        curl  http://<server ip>:5000/tasks/statuses
 
 for permanent switch os(with no version) install to latest image as default
 
     ... TBD ...
 
- and next provision could be done via aliasing
-
-    curl -i http://10.162.230.2:5000/pxe/api/node/provision/ses-client-8/sle-15sp1
-
- Use    'opensuse-leap-15.0' for defaut opensuse 15.0
-
 ## Test execution
+
+### Pelagos unit tests
 
 Unit tests are in 'test'  subdir and could be executed via
 
-    python test/test_pelagos.py 
+    python test/test_pelagos.py
+
+### Integration test
 
 Teuthology integration could be tested via  executing 2 commands:
 
-1. Run 
+1. Run Pelagos in python pelgos env
 
-    python bin/pelagos.py -c test_pelagos_teuthology/test_network_cfg.json --simulate=fast  --tftp-dir=/tmp/tftp 
+        python bin/pelagos.py -c test_pelagos_teuthology/test_network_cfg.json --simulate=fast  --tftp-dir=/tmp/tftp
 
-pytest test_pelagos.py -k test_create_5
+2. Run test in teuthology env with adding teuthology lib
 
+        pytest test_pelagos.py -k test_create_5
 
 ## Notes
 

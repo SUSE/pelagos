@@ -1,0 +1,26 @@
+{
+"default_pxe_server": "10.162.230.2",
+"ipmi_user": "oroot",
+"ipmi_pass": "hammer23",
+"target_node_password": "hammer23",
+"maintenance_image_kernel": "opensuse-leap-15.0.x86_64-0.0.1-4.12.14-lp150.11-default.kernel",
+"maintenance_image_initrd": "opensuse-leap-15.0-image.x86_64-0.0.1.initrd.xz",
+"salt_cfg_dir": "/tmp/saltcfg",
+"roster_file": "/tmp/roster",
+"nodes":[
+  {
+      "node":         "ses-client-8",
+      "mac":          "ac:1f:6b:70:5f:9a",
+      "ip":           "1.2.3.18",
+      "ip_type":      "dynamic",
+      "hsm_mac":      "aa:bb:cc:dd:00:18",
+      "hsm_ip":       "192.168.0.18",
+      "hsm_ip_type":  "dynamic",
+      "bmc_mac":      "aa:bb:cc:dd:00:80",
+      "bmc_ip":       "1.2.3.118",
+      "bmc_ip_type":  "dynamic",
+      "role":         "client",
+      "comment":      ""
+    }
+]
+}
