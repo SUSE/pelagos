@@ -1,6 +1,5 @@
 from copy import deepcopy
 
-#from mock import patch, DEFAULT, PropertyMock
 from pytest import raises, mark
 
 from teuthology.config import config
@@ -26,11 +25,10 @@ class TestPelagos(object):
     def setup(self):
         config.load(deepcopy(test_config))
 
-    #    def teardown(self):
+    def teardown(self):
+        pass
 
     def test_get_types(self):
-        # with patch('teuthology.provision.pelagos.enabled') as m_enabled:
-        #    m_enabled.return_value = enabled
 
         types = pelagos.get_types()
         assert types == test_config['pelagos']['machine_types'].split(',')

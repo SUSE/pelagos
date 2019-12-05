@@ -34,6 +34,11 @@ for teuthology generates sql script <target dir>/sql/nodes.sql
     INSERT INTO nodes (name, machine_type, mac_address, is_vm, locked, arch, description)
         VALUES  ( 'ses-client-3.a.b.de' , 'client' ,
             'aa:bb:cc:dd:67:16' , 'f' , 'f' , 'x86-64' , '' ) ;
+
+also generated udev rules file for predefined network names setup
+    #ses-client-1
+    SUBSYSTEM=="net", ACTION=="add", DRIVERS=="?*", ATTR{address}=="aa:bb:cc:dd:67.16", ATTR{dev_id}=="0x0", ATTR{type}=="1", KERNEL=="eth*", NAME="eth0"
+
 """
 
 parser = argparse.ArgumentParser(description=description,
@@ -47,6 +52,10 @@ def reversed_ip(ip):
 def hn(name):
     return name.split('.')[0]
 
+#some magic
+mgmt_nic = 'eth0'
+hsm_start_number = 2
+hsm_prefix  = 'eth'
 
 # hardcoded but should be parametrized
 pxe_output_file = 'states/etc/dnsmasq/dnsmasq.d/network_nodes.conf'
@@ -59,6 +68,7 @@ bmc_pass = ""
 domain = ""
 
 sql_script_file = 'sql/nodes.sql'
+udev_file = 'udev/70-persistent-net.rules'
 sql_line_prefix = 'INSERT INTO nodes ' \
                   '(name, machine_type, mac_address, is_vm, ' \
                   'locked, arch, description) VALUES '
@@ -87,10 +97,11 @@ roster_recors = ""
 pxe_node_lines = []
 pxe_node_ptr_lines = []
 nodes_sql_lines = []
+udev_lines = []
 
 for n in nodes:
     print('Process node' + n['node'])
-    
+
     if n['ip_type'] == 'dynamic':
         pxe_node_lines.append("dhcp-host={},{},{}"
                           .format(n['mac'], hn(n['node']), n['ip']))
@@ -123,13 +134,8 @@ for n in nodes:
                     "  user: root\n"
     if 't_exclude' in n.keys() and n['t_exclude'] != 'yes':
         sql_update_body = [
-                "'" + n['node'] + "'",
-                "'" + n['t_machine_type'] + "'",
-                "'" + n['mac'] + "'",
-                "'f'",
-                "'f'",
-                "'x86-64'",
-                "'" + n['comment'] + "'",
+                "'%s', '%s', '%s', 'f', 'f', 'x86-64', '%s'" \
+                % (n['node'], n['t_machine_type'], n['mac'], n['comment'])
             ]
         nodes_sql_lines.append(
             sql_line_prefix +\
@@ -138,9 +144,24 @@ for n in nodes:
             #" WHERE name     = '" + n['node'] + "' ;\n"
         )
 
+    udev_lines.append(
+        (   "#predefined rules for node  '%s'\n" % (n['node'])+\
+            'SUBSYSTEM=="net", ACTION=="add", DRIVERS=="?*",' +\
+            ' ATTR{address}=="%s",' % (n['mac']) +\
+            ' KERNEL=="eth*", NAME="%s" \n' % mgmt_nic
+        )
+    )
+    if 'hsm_mac' in n.keys() and isinstance(n['hsm_mac'], list):
+        for i in range(0, len(n['hsm_mac'])):
+            udev_lines.append(
+                'SUBSYSTEM=="net", ACTION=="add", DRIVERS=="?*",' +\
+                ' ATTR{address}=="%s",' % n['hsm_mac'][i] +\
+                ' KERNEL=="eth*", NAME="eth%d" \n' % (hsm_start_number + i)
+            )
+
 # ----------- pxe ---------------
 with open(target_dir_prefix + pxe_output_file, 'w') as ofile:
-    ofile.write("\n".join(pxe_node_lines)+"\n")    
+    ofile.write("\n".join(pxe_node_lines)+"\n")
     ofile.write("\n".join(pxe_node_ptr_lines)+"\n")
 print("File [{}] written".format(target_dir_prefix +
                                     pxe_output_file))
@@ -157,15 +178,19 @@ with open(target_dir_prefix + conman_cfg, 'w') as ofile:
 print("File [{}] written".format(target_dir_prefix + conman_cfg))
 
 # ----------- roster ---------------
-
 with open(target_dir_prefix + roster_file, 'w') as ofile:
     ofile.write(roster_recors)
 print("File [{}] written".format(target_dir_prefix + roster_file))
 
 # ----------- sql file ---------------
-
 with open(target_dir_prefix + sql_script_file, 'w') as ofile:
     ofile.write("".join(nodes_sql_lines))
 print("File [{}] written".format(target_dir_prefix +
                                      sql_script_file))
+
+# ----------- udev file ---------------
+udev_path = target_dir_prefix + udev_file
+with open(udev_path, 'w') as ofile:
+    ofile.write("".join(udev_lines))
+print("File [{}] written".format(udev_path))
 

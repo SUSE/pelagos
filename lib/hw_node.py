@@ -15,29 +15,38 @@ ipmi_pass = ''
 target_pass =''
 roster_file = 'deploy.roster'
 salt_cfg_dir  = '.'
+sls_list = []
 
 def init():
+    global ipmi_user
     ipmi_user = network_manager.get_option('ipmi_user')
+    global ipmi_pass
     ipmi_pass = network_manager.get_option('ipmi_pass')
-
+    global target_pass
     target_pass = network_manager.get_option(
         'target_node_password')
 
     if network_manager.get_option('roster_file'):
+        global roster_file
         roster_file = network_manager.get_option(
             'roster_file')
 
     if network_manager.get_option('salt_cfg_dir'):
-        salt_cfg_dir = network_manager.get_option(
+        global salt_cfg_dir
+        salt_cfg_dir= network_manager.get_option(
             'salt_cfg_dir')
 
+    if network_manager.get_option('sls_list'):
+        global sls_list
+        sls_list = [x.strip() for x in \
+            network_manager.get_option('sls_list').split(',')]
 
 
 def get_ipmi_cycle_cmd(ip, user='', passwd=''):
     if not user:
         user = ipmi_user
     if not passwd:
-        user = ipmi_pass
+        passwd = ipmi_pass
 
     return "{} -H {} -U {} -P {} -I lanplus power cycle".\
             format(ipmitool_bin, ip, user, passwd)
@@ -48,7 +57,7 @@ def get_conman_cmd(server, name):
 
 def get_salt_cmd(sls, node):
     return 'salt-ssh -i --roster-file ' + roster_file +\
-                    ' -c ' + salt_cfg_dir +\
+                    ' -c . '\
                     ' --no-host-keys --key-deploy ' +\
                     '--passwd ' + target_pass  +\
                     ' "' + node + '" ' +\
@@ -81,7 +90,7 @@ def wait_node_is_ready(node, timeout=5, attempts=120):
 
 
 def minimal_needed_configuration(node, timeout=60):
-    for sls in ["setup_hsm", "configure_services"]:
+    for sls in sls_list:
         local = LocalNode()
         local.pwd()
         local.shell(get_salt_cmd(sls, node['node']))
