@@ -14,8 +14,10 @@ def load_data_file():
         data = json.load(json_file)
     return data
 
-def get_option(opt_name):
-    return load_data_file()[opt_name]
+def get_option(opt_name, default_value=""):
+    if opt_name in load_data_file():
+        return load_data_file()[opt_name]
+    return default_value
 
 def get_nodes():
     return load_data_file()['nodes']
