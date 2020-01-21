@@ -29,7 +29,7 @@ class pxelinux_cfg_test(unittest.TestCase):
         hw_node.init()
         cmd  = hw_node.get_salt_cmd('test_sls', 'test_node')
         self.assertEqual(cmd,
-        'salt-ssh -i --roster-file deploy.roster -c . --no-host-keys --key-deploy --passwd  "test_node"  state.apply test_sls -l debug')
+        'salt-ssh -i --roster-file deploy.roster -c . --no-host-keys --key-deploy --passwd ssh_pass "test_node"  state.apply test_sls -l debug')
 
 
     #TODO should be used when conman suppot added to teuthology
