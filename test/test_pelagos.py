@@ -153,7 +153,7 @@ class pelagosTest(unittest.TestCase):
         logging.debug(prefix + " TaskID: " + taskid)
         response_1 = self.app.get(location)
         logging.debug(prefix + "next level response headers")
-        logging.debug(response_1.headers)        
+        logging.debug(response_1.headers)
         self.assertEqual(response_1.status, next_level_status, prefix)
         return location, taskid
 
