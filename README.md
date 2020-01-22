@@ -174,16 +174,25 @@ For manual node configuration could be used salt commands:
 ## Provision
 
 Warning! curl commands is subject for change
-    os = request.form['os']
-    node_id = request.form['node']
+
+* 'os' - os version which used for boot. It compatible with
+        teuthology format, e.g. could be ' sle-15.1'. Also
+        supported 2 special 'os'-es:
+         - 'local' - boot for local disk
+         - 'maintenance_image' - maintenance disk ram-only image, also it
+            used as 'parking' image in unlock command
+
+
+* 'node' -
 
 For provision one node for testing boot could be use cmd.
 
-        curl -i http://<server ip>:5000/node/provision -X POST -d {"os":"<dir name from tftp>", "node":"<nodename from configuration>"}
+    curl -i http://<server ip>:5000/node/provision -X POST \
+    -F 'os=_distro name_' -F 'node=_node name from cfg_'
 
 Provisioning status could be observed
 
-        curl  http://<server ip>:5000/tasks/statuses
+    curl  http://<server ip>:5000/tasks/statuses
 
 for permanent switch os(with no version) install to latest image as default
 
