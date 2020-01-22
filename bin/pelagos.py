@@ -57,8 +57,10 @@ def _check_input_node(node_id):
 def _check_input_os(os):
     if not len(os):
         abort(404, "No OS string [{}] found".format(os))
-    if os == 'local':
+    if os == pxelinux_cfg.id_local_boot:
         return pxelinux_cfg.id_local_boot
+    if os == pxelinux_cfg.id_maintenance_boot:
+        return pxelinux_cfg.id_maintenance_boot
     # list tftp dir and find all dirs, compare it with
     # required os and do fuzzy selection
     app.logger.info('Searching os  %s on disk', os)
@@ -187,6 +189,7 @@ if __name__ == '__main__':
         'default_pxe_server')
 
     hw_node.init()
+    pxelinux_cfg.init()
 
     app.run(debug=True, host='0.0.0.0', threaded=True)
         # False, processes=10)
