@@ -3,6 +3,7 @@ import re
 import logging
 import time
 import hw_node
+import network_manager
 
 # https://wiki.syslinux.org/wiki/index.php?title=PXELINUX
 # use mac address for now
@@ -10,6 +11,7 @@ import hw_node
 #
 
 id_local_boot = 'local'
+id_maintenance_boot = 'maintenance_image'
 
 #tftp_dir= '/srv/tftpboot/pxelinux.cfg'
 tftp_cfg_dir = '/srv/tftpboot'
@@ -29,17 +31,18 @@ MENU TIMEOUTROW 20
 
 pxe_main_menu = '''
 
-LABEL maintenance image
+LABEL maintenance_image
   MENU DEFAULT
   KERNEL boot/{}
   INITRD boot/{}
   APPEND console=tty1 console=ttyS1,115200 kiwiserver={}  ramdisk_size=2048000 disableProgressInfo=1 kiwidebug=1
-  LOCALBOOT 0
+  MENU DEFAULT
+
 
 LABEL memtest86
   MENU LABEL Memtest86+ 5.01
   KERNEL /boot/memtest86+-5.01
-  
+
 '''
 
 pxe_local_boot = '''
@@ -69,11 +72,23 @@ LABEL oem linux
   INITRD {}/pxeboot.initrd.xz
   APPEND  biosdevname=0 net.ifnames=0  rd.kiwi.install.pxe rd.kiwi.install.image=http://{}/{}/{}.xz console=tty1 console=ttyS1,115200 kiwidebug=1
   MENU DEFAULT
-            
+
 '''
 
 const_default_pxe = 'Default config is used: pxelinux.cfg/default'
 const_dedicated_pxe = 'Dedicated undefined config is used'
+
+def init():
+    global maintenance_image_kernel
+    if network_manager.get_option('maintenance_image_kernel'):
+        maintenance_image_kernel = \
+            network_manager.get_option('maintenance_image_kernel')
+
+    global maintenance_image_initrd
+    if network_manager.get_option('maintenance_image_initrd'):
+        maintenance_image_initrd = \
+            network_manager.get_option('maintenance_image_initrd')
+
 
 def get_pxe_map(nodes):
     oses = {}
@@ -93,14 +108,21 @@ def get_macfile(node):
 def get_boot_record_for_os(node, os_id):
 
     if os_id == id_local_boot:
-        cfg = pxe_common_settings + pxe_local_boot
+        cfg = pxe_local_boot
+    elif os_id == id_maintenance_boot:
+        cfg = pxe_main_menu.format(
+                             maintenance_image_kernel,
+                             maintenance_image_initrd,
+                             default_pxe_server)
     else:
         image = re.compile('^oem-').sub('', os_id)
         image = re.compile('-\d+\.\d+\.\d+').sub('', image)
-        cfg = pxe_common_os_boot_tmpl.format(os_id, os_id,
-                                             default_pxe_server, os_id, image)
+        cfg = pxe_common_os_boot_tmpl.format(
+                            os_id, os_id,
+                            default_pxe_server, os_id, image)
     return "# os={}\n".format(os_id) + \
-           "# node={}\n".format(node['node']) + pxe_common_settings + cfg + pxe_main_menu_submenu
+           "# node={}\n".format(node['node']) + \
+            pxe_common_settings + cfg + pxe_main_menu_submenu
 
 
 def get_configured_os(node):
