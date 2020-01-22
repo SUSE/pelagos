@@ -193,7 +193,7 @@ for permanent switch os(with no version) install to latest image as default
 
 ### Pelagos unit tests
 
-Unit tests are in 'test'  subdir and could be executed via
+Unit tests are in 'test' subdir and could be executed via
 
     python test/test_pelagos.py
 
@@ -203,7 +203,7 @@ Teuthology integration could be tested via  executing 2 commands:
 
 1. Run Pelagos in python pelgos env
 
-        python bin/pelagos.py -c test_pelagos_teuthology/test_network_cfg.json --simulate=fast  --tftp-dir=/tmp/tftp
+        python bin/pelagos.py --config test_pelagos_teuthology/test_network_cfg.json --simulation=fast  --tftpdir=/tmp/tftp
 
 2. Run test in teuthology env with adding teuthology lib
 

@@ -7,7 +7,9 @@
   "maintenance_image_initrd": "opensuse-leap-15.0-image.x86_64-0.0.1.initrd.xz",
   "default_pxe_server": "127.0.0.1",
   "domain": "suse.de",
-
+  "roster_file": "deploy.roster",
+  "salt_cfg_dir": "/tmp/saltcfg",
+  "sls_list": "setup_hsm, configure_services",
   "nodes":[
   {
     "node":        "head",
