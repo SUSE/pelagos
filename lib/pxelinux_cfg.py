@@ -68,9 +68,9 @@ LABEL mainmenu
 pxe_common_os_boot_tmpl = '''
 
 LABEL oem linux
-  KERNEL {}/pxeboot.kernel
-  INITRD {}/pxeboot.initrd.xz
-  APPEND  biosdevname=0 net.ifnames=0  rd.kiwi.install.pxe rd.kiwi.install.image=http://{}/{}/{}.xz console=tty1 console=ttyS1,115200 kiwidebug=1
+  KERNEL {os}/pxeboot.kernel
+  INITRD {os}/pxeboot.initrd.xz
+  APPEND  biosdevname=0 net.ifnames=0  rd.kiwi.install.pxe rd.kiwi.install.image=http://{server}/{os}/{image}.xz console=tty1 console=ttyS1,115200 kiwidebug=1
   MENU DEFAULT
 
 '''
@@ -118,8 +118,9 @@ def get_boot_record_for_os(node, os_id):
         image = re.compile('^oem-').sub('', os_id)
         image = re.compile('-\d+\.\d+\.\d+').sub('', image)
         cfg = pxe_common_os_boot_tmpl.format(
-                            os_id, os_id,
-                            default_pxe_server, os_id, image)
+                            os=os_id,
+                            server=default_pxe_server,
+                            image=image)
     return "# os={}\n".format(os_id) + \
            "# node={}\n".format(node['node']) + \
             pxe_common_settings + cfg + pxe_main_menu_submenu
@@ -212,8 +213,9 @@ def refresh_mainmenu():
         image = re.compile(r'^oem-').sub('', os_image_dir)
         image = re.compile(r'-\d+\.\d+\.\d+').sub('', image)
         disto_menu = disto_menu + pxe_common_os_boot_tmpl.format(
-            os_image_dir, os_image_dir, default_pxe_server,
-            os_image_dir, image)
+            os=os_image_dir,
+            server=default_pxe_server,
+            image=image)
 
     logging.debug("Write new pxe configuration: " + cfg_file)
     with open(cfg_file, 'w') as ofile:
