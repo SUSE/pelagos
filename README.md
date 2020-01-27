@@ -183,12 +183,12 @@ Warning! curl commands is subject for change
             used as 'parking' image in unlock command
 
 
-* 'node' -
+* 'node' - node name as defined in pelagos configuration
 
 For provision one node for testing boot could be use cmd.
 
     curl -i http://<server ip>:5000/node/provision -X POST \
-    -F 'os=_distro name_' -F 'node=_node name from cfg_'
+    -F 'os=os' -F 'node=node'
 
 Provisioning status could be observed
 
