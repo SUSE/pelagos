@@ -11,11 +11,13 @@ import flask_tasks
 
 import network_manager
 import pelagos
+import hw_node
 import pxelinux_cfg
 
 logging.basicConfig(format='%(asctime)s | %(name)s | %(message)s',
                     level=logging.DEBUG)
 test_pxelinux_cfg_root_dir = '/tmp/tftp'
+test_conman_dir = '/tmp/conman'
 test_pxelinux_cfg_dir = test_pxelinux_cfg_root_dir + '/pxelinux.cfg'
 
 
@@ -30,11 +32,16 @@ class pelagosTest(unittest.TestCase):
 
         shutil.rmtree(test_pxelinux_cfg_root_dir, ignore_errors=True)
         os.makedirs(test_pxelinux_cfg_dir, exist_ok=True)
+
+        shutil.rmtree(test_conman_dir, ignore_errors=True)
+        os.makedirs(test_conman_dir, exist_ok=True)
+
         pxelinux_cfg.pxelinux_cfg_dir = test_pxelinux_cfg_dir
         pxelinux_cfg.tftp_cfg_dir=test_pxelinux_cfg_root_dir
 
     def tearDown(self):
         shutil.rmtree(test_pxelinux_cfg_root_dir, ignore_errors=True)
+        shutil.rmtree(test_conman_dir, ignore_errors=True)
         logging.debug("Exiting from tearDown")
 
     def test_pxe_root(self):
@@ -188,6 +195,68 @@ class pelagosTest(unittest.TestCase):
         logging.debug(response_2.get_data())
         self.assertRegex(response_2.get_data(as_text=True),
                          "No\s+node\s+\[not_exists_test_node\]\s+found")
+
+        #ipmi failure
+        hw_node.ipmi_pass='nopass'
+        hw_node.ipmi_user='nouser'
+        pxelinux_cfg.wait_node_is_ready_timeout=5
+        pxelinux_cfg.default_undoubted_hw_start_timeout=1
+
+        location, id = self.do_flask_task_request(
+            '/node/provision',
+            {'os':'oem-sle_15sp1-0.1.1',
+                'node':'test_node'},
+                'provision timeout test')
+        logging.debug('Wait for bmc failure')
+        time.sleep(20)
+        response_3 = self.app.get(location)
+        logging.debug('next level response headers #3')
+        logging.debug(response_3.get_data())
+        self.assertRegex(response_3.get_data(as_text=True),
+                         '502 Bad Gateway')
+        self.assertRegex(response_3.get_data(as_text=True),
+                         'BMCException ipmitool call failed')
+
+        #connect to node timeout
+        #while no frozen output
+        hw_node.ipmitool_bin='echo'
+        hw_node.default_port_lookup_attempts=2
+        hw_node.default_port_lookup_timeout=1
+        hw_node.conman_log_prefix='/tmp/conman.console.'
+        shutil.copyfile('test/conman.console.test_node1',
+                        '/tmp/conman.console.test_node')
+
+        location, tid = self.do_flask_task_request(
+            '/node/provision',
+            {'os':'oem-sle_15sp1-0.1.1',
+                'node':'test_node'},
+                'provision timeout test')
+        logging.debug('Wait for server reaction 120s')
+        time.sleep(20)
+        response_4 = self.app.get(location)
+        logging.debug('next level response headers #4')
+        logging.debug(response_4.get_data())
+        self.assertRegex(response_4.get_data(as_text=True),
+                         '504 Gateway Timeout')
+        self.assertRegex(response_4.get_data(as_text=True),
+                         'Caught TimeoutException')
+
+        #frozen conman output/max restarts
+        pxelinux_cfg.wait_node_is_ready_timeout = 30
+        hw_node.default_conman_line_max_age = 3
+        location, tid = self.do_flask_task_request(
+            '/node/provision',
+            {'os':'oem-sle_15sp1-0.1.1',
+                'node':'test_node'},
+                'provision timeout test')
+        logging.debug('Wait for server reaction 120s')
+        time.sleep(20)
+        response_5 = self.app.get(location)
+        logging.debug('next level response headers #5')
+        logging.debug(response_5.get_data())
+        self.assertRegex(response_5.get_data(as_text=True),
+                         '502 Bad Gateway')
+
 
 
     def test_pxe_provision_node_threaded(self):

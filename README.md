@@ -185,10 +185,13 @@ Warning! curl commands is subject for change
 
 * 'node' - node name as defined in pelagos configuration
 
+* 'add_sls' - add node specific salt script to provisioning. Mostly it is
+    needed for specific or debug configuration.
+
 For provision one node for testing boot could be use cmd.
 
     curl -i http://<server ip>:5000/node/provision -X POST \
-    -F 'os=<os>' -F 'node=<node>'
+    -F 'os=<os>' -F 'node=<node>'  [-F 'add_sls=sls_name']
 
 Provisioning status could be observed
 
