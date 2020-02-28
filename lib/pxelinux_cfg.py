@@ -1,15 +1,16 @@
-import os
-import re
-import logging
-import time
 import hw_node
+import logging
 import network_manager
+import re
+import os
+import threading
+import time
 
 # https://wiki.syslinux.org/wiki/index.php?title=PXELINUX
 # use mac address for now
 # /srv/tftp/pxelinux.cfg/01-88-99-aa-bb-cc-dd
 #
-
+thread_local =  threading.local()
 id_local_boot = 'local'
 id_maintenance_boot = 'maintenance_image'
 wait_node_is_ready_timeout = 900
@@ -227,10 +228,14 @@ def refresh_mainmenu():
                              default_pxe_server) +
                          disto_menu)
 
+
 def provision_node_simulate_fast(node, os_id):
-    logging.debug("********************** simulating fast provisioning")
+    #local = threading.local()
+    thread_local.logger("********************** simulating fast provisioning")
+    #logging.debug("********************** simulating fast provisioning")
     time.sleep(3)
     return 1
+
 
 def provision_node_simulate(node, os_id):
     logging.debug("********************** simulating 20 sec provisioning")
@@ -241,7 +246,8 @@ def provision_node_simulate_failure(node, os_id):
     logging.debug("********************** simulating provisioning timeout")
     #timeout is needed for avoid race condition in thread start
     time.sleep(2)
-    raise TimeoutException("A node have not started in timeout (test mode)")
+    raise hw_node.TimeoutException(
+        "A node have not started in timeout (test mode)")
 
 
 def provision_node(node, os_id, extra_sls=[]):

@@ -15,14 +15,14 @@ from flask import Blueprint, abort, current_app, g, request, jsonify
 from werkzeug.exceptions import HTTPException, InternalServerError
 from flask import url_for as _url_for, current_app, _request_ctx_stack
 
-logging.basicConfig(format='%(asctime)s | %(name)s | %(message)s',
-                    level=logging.DEBUG)
+#logging.basicConfig(format='%(asctime)s | %(name)s | %(message)s',
+#                    level=logging.DEBUG)
 
 
 tasks_bp = Blueprint('tasks', __name__)
 tasks = {}
 testing = False
-
+max_start_count = 30
 
 def timestamp():
     """Return the current timestamp as an integer."""
@@ -89,6 +89,33 @@ def async_task(f):
                     tasks[task_id]['started'] = True
                     tasks[task_id]['rv'] = f(*args, **kwargs)
                     tasks[task_id]['status'] = 'done'
+
+                    # root = logging.getLogger()
+                    # root.setLevel(logging.DEBUG)
+                    # root.addHandler(qh)
+
+#                    thread_name = threading.Thread.getName(
+#                        threading.current_thread())
+#                    log_file = '/tmp/pelagos_per_thrd_log-{}.log'.format(
+#                        thread_name)
+#                    log_handler = logging.FileHandler(log_file)
+#                    log_handler.setLevel(logging.DEBUG)
+#
+#                    formatter = logging.Formatter(
+#                        "%(asctime)-15s"
+#                        "| %(threadName)-11s"
+#                        "| %(levelname)-5s"
+#                        "| %(message)s")
+#                    log_handler.setFormatter(formatter)
+#
+#                    # log_filter = ThreadLogFilter(thread_name)
+#                    # log_handler.addFilter(log_filter)
+#
+#                    logger = logging.getLogger()
+#                    logger.addHandler(log_handler)
+#                    data = threading.local()
+#                    dara.logger = logger
+#
                     logging.debug("target function completed")
                 except HTTPException as e:
                     logging.debug("Caught http exception:" + str(e))
@@ -116,13 +143,14 @@ def async_task(f):
         # wait is needed for case when many requests is done
         # and new thread starting took time
         i = 0
-        while i < 30:
+        while i < max_start_count:
             i = i + 1
             if 'started' in tasks[task_id]:
                 break
             time.sleep(1)
-        if not 'started' in tasks[task_id]:
-            tasks[task_id]['rv'] = InternalServerError("Too long async thread starts")
+        if 'started' not in tasks[task_id]:
+            tasks[task_id]['rv'] = InternalServerError(
+                             "Too long async thread starts")
             traceback.print_exc(file=sys.stdout)
 
         # Return a 202 response, with a link that the client can use to
@@ -140,7 +168,7 @@ def get_status(id):
     from the task is returned.
     """
     task = tasks.get(id)
-    logging.debug("Task " + id +":" + str(task))
+    logging.debug("Task " + id + ":" + str(task))
     if task is None:
         abort(404)
     repr(task)

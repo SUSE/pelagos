@@ -53,7 +53,7 @@ class TestPelagos(object):
         # assert no_os_answer_res.status_code == 404
         # print("\nNo os http response:\n" + no_os_answer_res.text)
 
-    def test_create(self):
+    def test_create_1(self):
         # prepare directory structure on localhost
         shutil.rmtree(test_pxelinux_cfg_root_dir, ignore_errors=True)
         os.makedirs(test_pxelinux_cfg_dir)
