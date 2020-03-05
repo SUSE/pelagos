@@ -1,5 +1,6 @@
 #
-# mostly copied from https://github.com/miguelgrinberg/flack/commit/0c372464b341a2df60ef8d93bdca2001009a42b5?diff=unified
+# mostly copied from https://github.com/miguelgrinberg/flack/
+# commit/0c372464b341a2df60ef8d93bdca2001009a42b5?diff=unified
 # video https://www.youtube.com/watch?v=tdIIJuPh3SI&feature=youtu.be
 #
 from functools import wraps
@@ -11,18 +12,16 @@ import sys
 import traceback
 import json
 
-from flask import Blueprint, abort, current_app, g, request, jsonify
+from flask import Blueprint, abort, current_app, request, jsonify
 from werkzeug.exceptions import HTTPException, InternalServerError
-from flask import url_for as _url_for, current_app, _request_ctx_stack
-
-#logging.basicConfig(format='%(asctime)s | %(name)s | %(message)s',
-#                    level=logging.DEBUG)
-
+from flask import url_for as _url_for, _request_ctx_stack
 
 tasks_bp = Blueprint('tasks', __name__)
 tasks = {}
+maintenance_thread = None
 testing = False
 max_start_count = 30
+
 
 def timestamp():
     """Return the current timestamp as an integer."""
@@ -47,6 +46,7 @@ def url_for(*args, **kwargs):
 
 @tasks_bp.before_app_first_request
 def before_first_request():
+    global maintenance_thread
     """Start a background thread that cleans up old tasks."""
     def clean_old_tasks():
         logging.debug("Cleanup old tasks")
@@ -59,13 +59,14 @@ def before_first_request():
             # minutes ago.
             five_min_ago = timestamp() - 5 * 60
             tasks = {id: task for id, task in tasks.items()
-                     if 't' not in task or task['t'] > five_min_ago}
+                     if 'endtime' not in task or
+                        task['endtime'] > five_min_ago}
             time.sleep(60)
 
     if not testing:
         logging.debug("Production mode, run cleanups")
-        thread = threading.Thread(target=clean_old_tasks)
-        #thread.start()
+        maintenance_thread = threading.Thread(target=clean_old_tasks)
+        maintenance_thread.start()
     else:
         logging.debug("Testing mode, no cleanup!")
 
@@ -89,33 +90,6 @@ def async_task(f):
                     tasks[task_id]['started'] = True
                     tasks[task_id]['rv'] = f(*args, **kwargs)
                     tasks[task_id]['status'] = 'done'
-
-                    # root = logging.getLogger()
-                    # root.setLevel(logging.DEBUG)
-                    # root.addHandler(qh)
-
-#                    thread_name = threading.Thread.getName(
-#                        threading.current_thread())
-#                    log_file = '/tmp/pelagos_per_thrd_log-{}.log'.format(
-#                        thread_name)
-#                    log_handler = logging.FileHandler(log_file)
-#                    log_handler.setLevel(logging.DEBUG)
-#
-#                    formatter = logging.Formatter(
-#                        "%(asctime)-15s"
-#                        "| %(threadName)-11s"
-#                        "| %(levelname)-5s"
-#                        "| %(message)s")
-#                    log_handler.setFormatter(formatter)
-#
-#                    # log_filter = ThreadLogFilter(thread_name)
-#                    # log_handler.addFilter(log_filter)
-#
-#                    logger = logging.getLogger()
-#                    logger.addHandler(log_handler)
-#                    data = threading.local()
-#                    dara.logger = logger
-#
                     logging.debug("target function completed")
                 except HTTPException as e:
                     logging.debug("Caught http exception:" + str(e))
@@ -135,7 +109,7 @@ def async_task(f):
         task_id = uuid.uuid4().hex
 
         # Record the task, and then launch it
-        #tasks[id]['started'] = False
+        # tasks[id]['started'] = False
         tasks[task_id] = {'task': threading.Thread(
             target=task, args=(current_app._get_current_object(),
                                request.environ))}
@@ -188,21 +162,15 @@ def get_statuses():
     status code, it means that task hasn't finished yet. Else, the response
     from the task is returned.
     """
-    #logging.info('List current active provisions')
-    #logging.debug("tasks:")
     res = dict()
     for task in tasks:
-        #logging.debug(tasks[task])
-        #logging.debug(tasks[task]['starttime'])
         t = dict()
         t['start_time'] = tasks[task]['starttime']
         t['end_time'] = tasks[task]['endtime']
         if 'rv' in tasks[task]:
-            rv= tasks[task]['rv']
-            #if hasattr(rv, 'get_data'):
-            t['rv'] = json.loads(rv.get_data().decode(sys.getdefaultencoding()))
-            #else:
-            #    t['rv'] = {'error_message':rv}
+            rv = tasks[task]['rv']
+            t['rv'] = json.loads(rv.get_data().decode(
+                        sys.getdefaultencoding()))
             t['status'] = 'done'
         else:
             t['status'] = 'not completed'

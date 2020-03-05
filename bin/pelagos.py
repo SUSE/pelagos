@@ -10,9 +10,10 @@ import logging.config
 import sys
 import threading
 
+import hw_node
 import network_manager
 import pxelinux_cfg
-import hw_node
+import threaded_logging
 
 description = """
 
@@ -33,58 +34,13 @@ parser.add_argument('--simulation', dest='simulation', default='',
                     help='Simulation mode, "fast" or "medium" supported now,' +
                     ' used for testing')
 
-# logging.basicConfig(format='%(asctime)s | %(name)s | %(message)s',
-#                    level=logging.DEBUG)
-
 app = Flask('pelagos')
 
 # Register async tasks support
 app.register_blueprint(tasks_blueprint, url_prefix='/tasks')
 app.ver_name = 'pelagos'
-app.version = '0.0.4'
+app.version = '0.0.5'
 app.simulate_mode = ''
-
-#thread_local =  threading.local()
-def config_root_logger():
-    log_file = '/tmp/perThreadLogging.log'
-
-    formatter = "%(asctime)-15s" \
-                "| %(processName)-10s" \
-                "| %(threadName)-11s" \
-                "| %(levelname)-5s" \
-                "| %(message)s"
-
-    logging.config.dictConfig({
-        'version': 1,
-        'formatters': {
-            'root_formatter': {
-                'format': formatter
-            }
-        },
-        'handlers': {
-            'console': {
-                'level': 'INFO',
-                'class': 'logging.StreamHandler',
-                'formatter': 'root_formatter'
-            },
-            'log_file': {
-                'class': 'logging.FileHandler',
-                'level': 'DEBUG',
-                'filename': log_file,
-                'formatter': 'root_formatter',
-            }
-        },
-        'loggers': {
-            '': {
-                'handlers': [
-                    'console',
-                    'log_file',
-                ],
-                'level': 'DEBUG',
-                'propagate': True
-            }
-        }
-    })
 
 
 def _check_input_node(node_id):
@@ -187,29 +143,7 @@ def rmbootrecord_node(node_id):
 @async_task
 def provision_node():
 
-    thread_name = threading.Thread.getName(
-        threading.current_thread())
-    log_file = '/tmp/pelagos_per_thrd_log-{}.log'.format(
-        thread_name)
-    log_handler = logging.FileHandler(log_file)
-    log_handler.setLevel(logging.DEBUG)
-
-    formatter = logging.Formatter(
-        "%(asctime)-15s"
-        "| %(threadName)-11s"
-        "| %(levelname)-5s"
-        "| qqqqq  %(message)s")
-    log_handler.setFormatter(formatter)
-
-    # log_filter = ThreadLogFilter(thread_name)
-    # log_handler.addFilter(log_filter)
-
-    thread_logger = logging.getLogger()
-    thread_logger.addHandler(log_handler)
-    #data = threading.local()
-    pxelinux_cfg.thread_local = thread_logger
-
-
+    handler = threaded_logging.start()
     if request.method != 'POST':
         return abort(405, "Use POST method")
     app.logger.info("Data for provision: [" +
@@ -225,8 +159,8 @@ def provision_node():
         app.logger.info(
             'Additinal salt script[{}]'.format(sls))
 
- #   node = _check_input_node(node_id)
- #   os_id = _check_input_os(os)
+    node = _check_input_node(node_id)
+    os_id = _check_input_os(os)
     try:
         if app.simulate_mode == 'fast':
             pxelinux_cfg.provision_node_simulate_fast(node, os)
@@ -262,7 +196,7 @@ def print_help():
 
 if __name__ == '__main__':
     args = parser.parse_args()
-    config_root_logger()
+    threaded_logging.config_root_logger()
 
     network_manager.data_file = args.config
     print("Set configuration file: " + network_manager.data_file)
