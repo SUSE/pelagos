@@ -88,8 +88,6 @@ def async_task(f):
                     tasks[task_id]['endtime'] = -1
                     tasks[task_id]['started'] = True
                     tasks[task_id]['rv'] = f(*args, **kwargs)
-                    tasks[task_id]['status'] = 'done'
-                    logging.debug("target function completed")
                 except HTTPException as e:
                     logging.debug("Caught http exception:" + str(e))
                     tasks[task_id]['rv'] = current_app.handle_http_exception(e)
@@ -102,13 +100,14 @@ def async_task(f):
                 finally:
                     # We record the time of the response, to help in garbage
                     # collecting old tasks
+                    tasks[task_id]['status'] = 'done'
+                    logging.debug("target function completed")
                     tasks[task_id]['endtime'] = timestamp()
 
         # Assign an id to the asynchronous task
         task_id = uuid.uuid4().hex
 
         # Record the task, and then launch it
-        #tasks[id]['started'] = False
         tasks[task_id] = {'task': threading.Thread(
             target=task, args=(current_app._get_current_object(),
                                request.environ))}
@@ -121,8 +120,9 @@ def async_task(f):
             if 'started' in tasks[task_id]:
                 break
             time.sleep(1)
-        if not 'started' in tasks[task_id]:
-            tasks[task_id]['rv'] = InternalServerError("Too long async thread starts")
+        if 'started' not in tasks[task_id]:
+            tasks[task_id]['rv'] = InternalServerError(
+                'Too long async thread starts')
             traceback.print_exc(file=sys.stdout)
 
         # Return a 202 response, with a link that the client can use to
@@ -135,19 +135,19 @@ def async_task(f):
 @tasks_bp.route('/status/<id>', methods=['GET'])
 def get_status(id):
     """
-    Return status about an asynchronous task. If this request returns a 202
+    Return synchronous task status. If this request returns a 202
     status code, it means that task hasn't finished yet. Else, the response
     from the task is returned.
     """
     task = tasks.get(id)
-    logging.debug("Task " + id +":" + str(task))
+    logging.debug("Task %s:%s" % (id, str(task)))
     if task is None:
         abort(404)
     repr(task)
     if 'rv' not in task:
         return '', 202, {'Location': url_for('tasks.get_status', id=id),
-                         'Start time': task['starttime'],
-                         'End time': task['endtime'],
+                         'StartTime': task['starttime'],
+                         'EndTime': task['endtime'],
                          'TaskID': id,
                          'status': 'not completed'}
     return task['rv']
@@ -156,25 +156,23 @@ def get_status(id):
 @tasks_bp.route('/statuses', methods=['GET'])
 def get_statuses():
     """
-    Return status about an asynchronous task. If this request returns a 202
+    Return asynchronous task statuses per task. If this request returns a 202
     status code, it means that task hasn't finished yet. Else, the response
     from the task is returned.
     """
-    #logging.info('List current active provisions')
-    #logging.debug("tasks:")
+    # logging.info('List current active provisions')
+    # logging.debug("tasks:")
     res = dict()
     for task in tasks:
-        #logging.debug(tasks[task])
-        #logging.debug(tasks[task]['starttime'])
+        # logging.debug(tasks[task])
+        # logging.debug(tasks[task]['starttime'])
         t = dict()
         t['start_time'] = tasks[task]['starttime']
         t['end_time'] = tasks[task]['endtime']
         if 'rv' in tasks[task]:
-            rv= tasks[task]['rv']
-            #if hasattr(rv, 'get_data'):
-            t['rv'] = json.loads(rv.get_data().decode(sys.getdefaultencoding()))
-            #else:
-            #    t['rv'] = {'error_message':rv}
+            rv = tasks[task]['rv']
+            t['rv'] = json.loads(
+                rv.get_data().decode(sys.getdefaultencoding()))
             t['status'] = 'done'
         else:
             t['status'] = 'not completed'

@@ -11,6 +11,7 @@ logging.basicConfig(format='%(asctime)s | %(name)s | %(message)s',
 tftp_cfg_dir = '/tmp/tftp'
 pxelinux_cfg_dir = "/tmp/tftp/pxelinux_cfg"
 
+
 class PxelinuxCfgTest(unittest.TestCase):
 
     def setUp(self):
@@ -20,7 +21,7 @@ class PxelinuxCfgTest(unittest.TestCase):
         os.makedirs(tftp_cfg_dir, exist_ok=True)
         os.makedirs(pxelinux_cfg_dir, exist_ok=True)
         pxelinux_cfg.tftp_cfg_dir = tftp_cfg_dir
-        pxelinux_cfg.default_pxe_server="1.2.3.4"
+        pxelinux_cfg.default_pxe_server = "1.2.3.4"
 
         pxelinux_cfg.pxelinux_cfg_dir = pxelinux_cfg_dir
         shutil.rmtree(pxelinux_cfg.pxelinux_cfg_dir, ignore_errors=True)
@@ -30,33 +31,35 @@ class PxelinuxCfgTest(unittest.TestCase):
         shutil.rmtree(tftp_cfg_dir, ignore_errors=True)
 
     def test_list_os(self):
-        os.makedirs(tftp_cfg_dir + '/oem-sle_15sp1')
-
-        os.makedirs(tftp_cfg_dir + '/oem-sle_15sp1-0.0.1')
-        found = pxelinux_cfg.get_os_dir('oem-sle_15sp1')
+        tdir = 'sle-15.1-0.1.1-29.1'
+        os.makedirs(tftp_cfg_dir + '/' + tdir)
+        found = pxelinux_cfg.get_os_dir(tdir)
         logging.debug("found os directory: " + found)
-        self.assertEqual(found, 'oem-sle_15sp1-0.0.1')
+        self.assertEqual(found, tdir)
 
-        os.makedirs(tftp_cfg_dir + '/oem-sle_15sp1-0.0.3')
-        found = pxelinux_cfg.get_os_dir('oem-sle_15sp1')
+        os.symlink(tftp_cfg_dir + '/' + tdir,
+                   tftp_cfg_dir + '/sle-15.1')
+        found = pxelinux_cfg.get_os_dir('sle-15.1')
         logging.debug("found os directory: " + found)
-        self.assertEqual(found, 'oem-sle_15sp1-0.0.3')
+        self.assertEqual(found, tdir)
 
-        os.makedirs(tftp_cfg_dir + '/oem-sle_15sp1-1.0.1')
-        found = pxelinux_cfg.get_os_dir('oem-sle_15sp1')
-        logging.debug("found os directory: " + found)
-        self.assertEqual(found, 'oem-sle_15sp1-1.0.1')
-
-        os.makedirs(tftp_cfg_dir + '/oem-sle-15.1-1.0.5')
-        found = pxelinux_cfg.get_os_dir('oem-sle-15.1')
-        logging.debug("found os directory: " + found)
-        self.assertEqual(found, 'oem-sle-15.1-1.0.5')
-
-        found = pxelinux_cfg.get_os_dir('ubuntu-18.04')
-        logging.debug("found os directory: " + found)
-        self.assertEqual(found, '')
+    def test_get_boot_record_for_os(self):
+        os_id = 'sle-15.1-0.1.1-29.1'
+        os.makedirs(tftp_cfg_dir + '/' + os_id)
+        boot = pxelinux_cfg.get_boot_record_for_os(
+            {'node': 'test_node'}, os_id)
+        logging.debug("Boot records: " + boot)
+        self.assertRegex(boot,
+                         '/minimal-sle-15-sp1.x86_64-0.1.1.xz',
+                         'check image')
+        self.assertRegex(boot,
+                         'http://1.2.3.4/sle-15.1-0.1.1-29.1/', 'check host')
+        self.assertRegex(boot,
+                         'console=tty1 console=ttyS1,11520', 'check tty')
 
     def test_prepare_tftp(self):
+        tdir = 'sle-15.1-0.1.1-29.1'
+        os.makedirs(tftp_cfg_dir + '/' + tdir)
         network_manager.data_file = 'test/test_network_cfg.json'
         node = network_manager.get_node_by_name('test_node')
 
@@ -81,7 +84,7 @@ class PxelinuxCfgTest(unittest.TestCase):
                          'APPEND\s+pxelinux\.cfg\/default',
                          'check generated local data #2')
 
-        pxelinux_cfg.set_tftp_dir(node, 'oem-sle_15sp1')
+        pxelinux_cfg.set_tftp_dir(node, 'sle-15.1-0.1.1-29.1')
         self.assertTrue(os.path.isfile(mac_file),
                         'special os cfg file generated')
         with open(mac_file, 'r') as ifile:
@@ -89,15 +92,13 @@ class PxelinuxCfgTest(unittest.TestCase):
             cfg = "\n".join(lines)
 
         self.assertRegex(cfg,
-                         'KERNEL oem-sle_15sp1/pxeboot.kernel',
+                         'KERNEL sle-15.1-0.1.1-29.1/pxeboot.kernel',
                          'check os specific generated data #1')
         self.assertRegex(cfg,
-                         'INITRD oem-sle_15sp1/pxeboot.initrd.xz',
+                         'INITRD sle-15.1-0.1.1-29.1/pxeboot.initrd.xz',
                          'check os specific generated data #2')
         self.assertRegex(cfg,
-                         'rd.kiwi.install.pxe\s+rd.kiwi.install.image='
-                         'http://1.2.3.4/oem-sle_15sp1/'
-                         'sle_15sp1.xz\s+console=tty1',
+                         'rd.kiwi.install.pxe\s+rd.kiwi.install.image=',
                          'check os specific generated data #3')
 
         pxelinux_cfg.cleanup_tftp_dir(node)
@@ -114,7 +115,7 @@ class PxelinuxCfgTest(unittest.TestCase):
         pxelinux_cfg.refresh_symlinks('oem_sle_15sp1', '0.1.1')
         logging.debug("Read test file via symlink: "
                       + tftp_cfg_dir + '/oem_sle_15sp1/test')
-        with open(tftp_cfg_dir + '/oem_sle_15sp1/test','r') as ifile:
+        with open(tftp_cfg_dir + '/oem_sle_15sp1/test', 'r') as ifile:
             lines = ifile.readlines()
 
         self.assertFalse(os.path.islink(tftp_cfg_dir + '/oem_sle_15sp1/test'))
@@ -132,23 +133,6 @@ class PxelinuxCfgTest(unittest.TestCase):
         self.assertEqual(lines[0], '111')
 
         logging.debug("---")
-
-
-    def test_refresh_mainmenu(self):
-
-        os.makedirs(tftp_cfg_dir + '/oem_sle_15sp1-0.1.1')
-        pxelinux_cfg.refresh_symlinks('oem_sle_15sp1', '0.1.1')
-
-        os.makedirs(tftp_cfg_dir + '/oem_sle_12sp4-0.0.1')
-        pxelinux_cfg.refresh_symlinks('oem_sle_12sp4', '0.0.1')
-
-        os.makedirs(tftp_cfg_dir + '/oem_sle_15sp1-1.1.1')
-
-        pxelinux_cfg.refresh_mainmenu()
-        with open(pxelinux_cfg_dir + '/default', 'r') as ifile:
-            lines = ifile.readlines()
-        def_cfg = "\n".join(lines)
-        logging.debug(def_cfg)
 
 
 if __name__ == '__main__':

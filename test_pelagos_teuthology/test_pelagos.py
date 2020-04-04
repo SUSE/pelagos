@@ -18,6 +18,7 @@ test_config = dict(pelagos=dict(
 test_pxelinux_cfg_root_dir = '/tmp/tftp'
 test_pxelinux_cfg_dir = test_pxelinux_cfg_root_dir + '/pxelinux.cfg'
 
+
 class TestPelagos(object):
     klass = pelagos.Pelagos
 
@@ -57,18 +58,18 @@ class TestPelagos(object):
         # prepare directory structure on localhost
         shutil.rmtree(test_pxelinux_cfg_root_dir, ignore_errors=True)
         os.makedirs(test_pxelinux_cfg_dir)
-        test_dir = test_pxelinux_cfg_root_dir + '/sle_15sp1-0.1.1'
+        os_id = 'sle-15.1'
+        test_dir = '%s/%s' % (test_pxelinux_cfg_root_dir, os_id)
         # print("Create test dir: " + test_dir)
         os.makedirs(test_dir)
 
         # run action
         node = 'test_node'
-        obj = self.klass(node, 'sle_15sp1', '0.1.1')
+        obj = self.klass(node, 'sle', '15.1')
         deploy_answer = obj.create()
         deploy_res = json.loads(deploy_answer.text)
         assert deploy_res['status'] == 'done'
         assert deploy_res['node']['node'] == node
-
 
     def test_create_5(self):
         # prepare directory structure on localhost
@@ -79,7 +80,7 @@ class TestPelagos(object):
         os.makedirs(test_dir)
 
         # run action
-        nodes = ['tnode1', 'tnode2', 'tnode3', 'tnode4'] #, 'tnode5']
+        nodes = ['tnode1', 'tnode2', 'tnode3', 'tnode4']
         objs = dict()
         for node in nodes:
             objs[node] = self.klass(node, 'sle', '15.1')
@@ -88,8 +89,9 @@ class TestPelagos(object):
             for node in nodes:
                 p.spawn(provision_sim, objs[node])
 
+
 def provision_sim(obj):
     deploy_answer = obj.create()
     deploy_res = json.loads(deploy_answer.text)
-    #assert deploy_res['status'] == 'done'
-    #assert deploy_res['node']['node'] == node
+    # assert deploy_res['status'] == 'done'
+    # assert deploy_res['node']['node'] == node

@@ -1,4 +1,5 @@
 import os
+import os.path
 import re
 import logging
 import time
@@ -14,12 +15,16 @@ id_local_boot = 'local'
 id_maintenance_boot = 'maintenance_image'
 wait_node_is_ready_timeout = 900
 default_undoubted_hw_start_timeout = 30
-#tftp_dir= '/srv/tftpboot/pxelinux.cfg'
 tftp_cfg_dir = '/srv/tftpboot'
 pxelinux_cfg_dir = tftp_cfg_dir + '/pxelinux.cfg'
 default_pxe_server = ''
 maintenance_image_kernel = ''
 maintenance_image_initrd = ''
+
+pxe_debug_opts = 'rd.debug rd.kiwi.debug'
+pxe_console_opts = 'console=tty1 console=ttyS1,115200'
+pxe_bios_opts = 'biosdevname=0 net.ifnames=0'
+
 
 pxe_common_settings = '''
 
@@ -71,13 +76,14 @@ pxe_common_os_boot_tmpl = '''
 LABEL oem linux
   KERNEL {os}/pxeboot.kernel
   INITRD {os}/pxeboot.initrd.xz
-  APPEND  biosdevname=0 net.ifnames=0  rd.kiwi.install.pxe rd.kiwi.install.image=http://{server}/{os}/{image}.xz console=tty1 console=ttyS1,115200 kiwidebug=1
+  APPEND {bios} rd.kiwi.install.pxe rd.kiwi.install.image=http://{server}/{dir}/{image} {tty} {debug}
   MENU DEFAULT
 
 '''
 
 const_default_pxe = 'Default config is used: pxelinux.cfg/default'
 const_dedicated_pxe = 'Dedicated undefined config is used'
+
 
 def init():
     global maintenance_image_kernel
@@ -107,7 +113,6 @@ def get_macfile(node):
 
 
 def get_boot_record_for_os(node, os_id):
-
     if os_id == id_local_boot:
         cfg = pxe_local_boot
     elif os_id == id_maintenance_boot:
@@ -116,15 +121,29 @@ def get_boot_record_for_os(node, os_id):
                              maintenance_image_initrd,
                              default_pxe_server)
     else:
-        image = re.compile('^oem-').sub('', os_id)
-        image = re.compile('-\d+\.\d+\.\d+').sub('', image)
+        image = ''
+        # split str same as 'sle-15.1-0.1.1-29.1' to version
+        version = \
+            re.search(r'(\w+)\-(\d+)\.(\d+)\-(\d+\.\d+\.\d+)\-(\d+\.\d+)',
+                      get_os_dir(os_id))
+        if version:
+            image = "minimal-%s-%s-sp%s.x86_64-%s.xz" % (
+                    version.group(1),
+                    version.group(2),
+                    version.group(3),
+                    version.group(4)
+                    )
         cfg = pxe_common_os_boot_tmpl.format(
                             os=os_id,
                             server=default_pxe_server,
-                            image=image)
+                            dir=os_id,
+                            image=image,
+                            bios=pxe_bios_opts,
+                            debug=pxe_debug_opts,
+                            tty=pxe_console_opts)
     return "# os={}\n".format(os_id) + \
            "# node={}\n".format(node['node']) + \
-            pxe_common_settings + cfg + pxe_main_menu_submenu
+           pxe_common_settings + cfg + pxe_main_menu_submenu
 
 
 def get_configured_os(node):
@@ -144,11 +163,6 @@ def get_configured_os(node):
     else:
         return const_default_pxe
 
-#def get_configuration(image='opensuse-leap-15.0.xz', pxe_server=default_pxe_server):
-#    tmpl = pxe_common_settings + pxe_local_boot
-#    #.format(pxe_server, image)
-#    return tmpl
-
 
 def set_tftp_dir(node, os_id):
     cfgdata = get_boot_record_for_os(node, os_id)
@@ -167,24 +181,18 @@ def cleanup_tftp_dir(node):
     os.remove(get_macfile(node))
 
 
-def get_os_dir(os_str):
-    result = ''
-    logging.debug("Search [{}] in dir[{}]".format(os_str, tftp_cfg_dir))
-    for dirname, dirnames, filenames in os.walk(tftp_cfg_dir):
-        logging.debug("Check dir [{}]".format(dirname))
-        # os_match = re.search(r'(oem-.+-\d+\.\d+\.\d+)$', dirname)
-        # os_match = re.search(r'(oem-.+-\d+\.\d+\.\d+)$', dirname)
-        #os_match = re.search(r'/(.+-\d+\.\d+\.\d+)$', dirname)
-        #dirname. os.path.basename(dirname)
-        #if os_match is not None:
-        #    logging.debug('Found dir [{}], check it '.
-        #                  format(str(os_match.groups())))
-        if os.path.basename(dirname).startswith(os_str):
-            logging.debug('Found, set it')
-            if os.path.basename(dirname) > result:
-                result = os.path.basename(dirname)
+def get_os_dir(os_rel_path):
+    logging.debug("Search [{}] in dir[{}]".format(os_rel_path, tftp_cfg_dir))
+    abs_os_path = "%s/%s" % (tftp_cfg_dir, os_rel_path)
 
-    return result
+    # for teuthology we use symlink to actual kiwi build
+    if os.path.islink(abs_os_path):
+        real_path = os.readlink(abs_os_path)
+        return os.path.basename(real_path)
+    elif os.path.exists(abs_os_path):
+        return os_rel_path
+
+    return None
 
 
 def refresh_symlinks(os_id, ver):
@@ -196,50 +204,21 @@ def refresh_symlinks(os_id, ver):
                tftp_cfg_dir + '/' + os_id, True)
 
 
-def refresh_mainmenu():
-    disto_list = []
-    for name in os.listdir(tftp_cfg_dir):
-        if name not in (os.curdir, os.pardir):
-            full = os.path.join(tftp_cfg_dir, name)
-            if os.path.islink(full):
-                logging.debug(name + '->' + os.readlink(full))
-                disto_list.append(name)
-    cfg_file = pxelinux_cfg_dir + '/default'
-    if os.path.isfile(cfg_file):
-        os.rename(cfg_file, cfg_file+"."+time.gmtime())
-    disto_menu = ''
-    # os_image_dir, os_image_dir, pxe_server, os_image_dir, os_image_dir
-    for disto in disto_list:
-        os_image_dir = tftp_cfg_dir + "/" + disto
-        image = re.compile(r'^oem-').sub('', os_image_dir)
-        image = re.compile(r'-\d+\.\d+\.\d+').sub('', image)
-        disto_menu = disto_menu + pxe_common_os_boot_tmpl.format(
-            os=os_image_dir,
-            server=default_pxe_server,
-            image=image)
-
-    logging.debug("Write new pxe configuration: " + cfg_file)
-    with open(cfg_file, 'w') as ofile:
-        ofile.writelines(pxe_common_settings +
-                         pxe_main_menu.format(
-                             maintenance_image_kernel,
-                             maintenance_image_initrd,
-                             default_pxe_server) +
-                         disto_menu)
-
 def provision_node_simulate_fast(node, os_id):
     logging.debug("********************** simulating fast provisioning")
     time.sleep(3)
     return 1
+
 
 def provision_node_simulate(node, os_id):
     logging.debug("********************** simulating 20 sec provisioning")
     time.sleep(20)
     return 1
 
+
 def provision_node_simulate_failure(node, os_id):
     logging.debug("********************** simulating provisioning timeout")
-    #timeout is needed for avoid race condition in thread start
+    # timeout is needed for avoid race condition in thread start
     time.sleep(2)
     raise TimeoutException("A node have not started in timeout (test mode)")
 
@@ -248,7 +227,7 @@ def provision_node(node, os_id, extra_sls=[]):
     set_tftp_dir(node, os_id)
     hw_node.power_cycle(node)
     time.sleep(default_undoubted_hw_start_timeout)
-    hw_node.wait_node_is_ready(node,timeout=wait_node_is_ready_timeout)
+    hw_node.wait_node_is_ready(node, timeout=wait_node_is_ready_timeout)
     if not (os_id == id_local_boot or
             os_id == id_maintenance_boot):
         hw_node.minimal_needed_configuration(node, extra_sls=extra_sls)

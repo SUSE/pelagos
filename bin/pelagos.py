@@ -4,11 +4,9 @@ from flask import Flask, jsonify, abort, request
 from flask_tasks import tasks_bp as tasks_blueprint
 from flask_tasks import async_task, tasks
 
-import time
-import sys
-import logging
-import getopt
 import argparse
+import logging
+import sys
 
 import network_manager
 import pxelinux_cfg
@@ -21,7 +19,8 @@ It also do some manipulation with tftp/pxe files
 
 """
 parser = argparse.ArgumentParser(description=description,
-        formatter_class=argparse.RawDescriptionHelpFormatter)
+                                 formatter_class=argparse.
+                                 RawDescriptionHelpFormatter)
 
 parser.add_argument('--config', dest='config', required=True,
                     help='Path to pelagos configuration file')
@@ -30,8 +29,8 @@ parser.add_argument('--tftpdir', dest='tftp_dir', required=True,
                     help='tftp root directory')
 
 parser.add_argument('--simulation', dest='simulation', default='',
-                    help='Simulation mode, "fast" or "medium" supported now, ' +
-                     'used for testing')
+                    help='Simulation mode, "fast" or "medium" supported ' +
+                    'now, used for testing')
 
 logging.basicConfig(format='%(asctime)s | %(name)s | %(message)s',
                     level=logging.DEBUG)
@@ -40,7 +39,7 @@ app = Flask('pelagos')
 
 # Register async tasks support
 app.register_blueprint(tasks_blueprint, url_prefix='/tasks')
-app.ver_name='pelagos'
+app.ver_name = 'pelagos'
 app.version = '0.0.3'
 app.simulate_mode = ''
 
@@ -49,7 +48,7 @@ def _check_input_node(node_id):
     app.logger.info('Searching node [%s]', node_id)
     node = network_manager.get_node_by_name(node_id, exception=False)
     if not len(node):
-        app.logger.info('Failed to find node {}'.format(node_id))
+        app.logger.info('Failed to find node: {}'.format(node_id))
         abort(404, "No node [{}] found".format(node_id))
     return node
 
@@ -65,7 +64,7 @@ def _check_input_os(os):
     # required os and do fuzzy selection
     app.logger.info('Searching os  %s on disk', os)
     checked_os = pxelinux_cfg.get_os_dir(os)
-    if checked_os == '':
+    if not checked_os:
         app.logger.info('Failed to find os %s', os)
         abort(404, "No os image [{}] found in dir [{}]".
               format(os, pxelinux_cfg.tftp_cfg_dir))
@@ -118,7 +117,8 @@ def check_image(os):
 # PUT
 @app.route('/node/bootrecord/<string:node_id>/<string:os>', methods=['GET'])
 def bootrecord_node(node_id, os):
-    app.logger.info('Set boot record for node {}  with OS {}'.format(node_id, os))
+    app.logger.info('Set boot record for node {}  with OS {}'.
+                    format(node_id, os))
     node = _check_input_node(node_id)
     os_id = _check_input_os(os)
     pxelinux_cfg.set_tftp_dir(node, os_id)
@@ -137,7 +137,7 @@ def rmbootrecord_node(node_id):
                     'node': node
                     })
 
-#PATCH
+# PATCH
 # os - PATCH parameter
 # node_id - parameter from url
 @app.route('/node/provision', methods=['POST'])
@@ -145,8 +145,8 @@ def rmbootrecord_node(node_id):
 def provision_node():
     if request.method != 'POST':
         return abort(405, "Use POST method")
-    # time.sleep(30)
-    app.logger.info("Data for provision: [" + str(request.get_data(as_text=True)) + "]")
+    app.logger.info("Data for provision: [%s]" % str(
+        request.get_data(as_text=True)))
     os = request.form['os']
     node_id = request.form['node']
     sls = ''
@@ -157,18 +157,17 @@ def provision_node():
         sls = request.form['extra_sls']
         app.logger.info(
             'Additinal salt script[{}]'.format(sls))
-
     node = _check_input_node(node_id)
     os_id = _check_input_os(os)
     try:
         if app.simulate_mode == 'fast':
-            pxelinux_cfg.provision_node_simulate_fast(node,os)
+            pxelinux_cfg.provision_node_simulate_fast(node, os)
         elif app.simulate_mode == 'medium':
             pxelinux_cfg.provision_node_simulate(node, os)
         else:
             pxelinux_cfg.provision_node(node, os, extra_sls=sls.split())
     except hw_node.TimeoutException as tmt_excp:
-        msg_tmt_excp= 'Caught TimeoutException %s' % tmt_excp
+        msg_tmt_excp = 'Caught TimeoutException %s' % tmt_excp
         app.logger.info(msg_tmt_excp)
         abort(504, msg_tmt_excp)
     except hw_node.CannotBootException as boot_excp:
@@ -203,17 +202,16 @@ if __name__ == '__main__':
     pxelinux_cfg.pxelinux_cfg_dir = \
         pxelinux_cfg.tftp_cfg_dir + '/pxelinux.cfg'
 
-    app.simulate_mode=args.simulation
+    app.simulate_mode = args.simulation
     if app.simulate_mode:
         print("Set simulate mode to :" + app.simulate_mode)
     else:
         print("Set production mode")
 
-    pxelinux_cfg.default_pxe_server  = network_manager.get_option(
+    pxelinux_cfg.default_pxe_server = network_manager.get_option(
         'default_pxe_server')
 
     hw_node.init()
     pxelinux_cfg.init()
 
     app.run(debug=True, host='0.0.0.0', threaded=True)
-        # False, processes=10)
