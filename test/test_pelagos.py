@@ -90,7 +90,7 @@ class pelagosTest(unittest.TestCase):
 
         logging.debug(response.get_data(as_text=True))
         self.assertRegex(response.get_data(as_text=True),
-                         "No\s+os\s+image\s+\[not_set_os_image\]\s+found")
+                         r'No\s+os\s+image\s+\[not_set_os_image\]\s+found')
         os_id = 'sle-15.1-0.1.1-29.1'
         os.makedirs('%s/%s' % (test_pxelinux_cfg_root_dir, os_id))
         response = self.app.get('/check_image/%s' % os_id)
@@ -178,7 +178,7 @@ class pelagosTest(unittest.TestCase):
         logging.debug("next level response headers #1")
         logging.debug(response_2.get_data())
         self.assertRegex(response_2.get_data(as_text=True),
-                         "No\s+os\s+image\s+\[test_os\]\s+found")
+                         r'No\s+os\s+image\s+\[test_os\]\s+found')
         # timeout for clear output
         time.sleep(1)
         # unknown node
@@ -197,7 +197,7 @@ class pelagosTest(unittest.TestCase):
         logging.debug("next level response headers #2")
         logging.debug(response_2.get_data())
         self.assertRegex(response_2.get_data(as_text=True),
-                         "No\s+node\s+\[not_exists_test_node\]\s+found")
+                         r'No\s+node\s+\[not_exists_test_node\]\s+found')
 
         # timeout for clear output
         time.sleep(1)

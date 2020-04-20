@@ -2,18 +2,18 @@
 # mostly copied from https://github.com/miguelgrinberg/flack/commit/0c372464b341a2df60ef8d93bdca2001009a42b5?diff=unified
 # video https://www.youtube.com/watch?v=tdIIJuPh3SI&feature=youtu.be
 #
-from functools import wraps
-import threading
-import time
-import uuid
+import json
 import logging
 import sys
+import threading
+import time
 import traceback
-import json
+import uuid
 
-from flask import Blueprint, abort, current_app, g, request, jsonify
+from functools import wraps
+from flask import Blueprint, abort, current_app, request, jsonify
+from flask import url_for as _url_for, _request_ctx_stack
 from werkzeug.exceptions import HTTPException, InternalServerError
-from flask import url_for as _url_for, current_app, _request_ctx_stack
 
 logging.basicConfig(format='%(asctime)s | %(name)s | %(message)s',
                     level=logging.DEBUG)
@@ -64,8 +64,8 @@ def before_first_request():
 
     if not testing:
         logging.debug("Production mode, run cleanups")
-        thread = threading.Thread(target=clean_old_tasks)
-        #thread.start()
+        threading.Thread(target=clean_old_tasks)
+        # thread.start()
     else:
         logging.debug("Testing mode, no cleanup!")
 

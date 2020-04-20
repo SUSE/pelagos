@@ -1,6 +1,5 @@
 
 from node import LocalNode
-import os
 import logging
 import network_manager
 import re
@@ -16,23 +15,29 @@ conman_log_prefix = '/var/log/conman/console.'
 conman_bin = 'conman'
 ipmi_user = ''
 ipmi_pass = ''
-target_pass =''
+target_pass = ''
 roster_file = 'deploy.roster'
-salt_cfg_dir  = '.'
+salt_cfg_dir = '.'
 sls_list = []
 default_port_lookup_timeout = 5
 default_port_lookup_attempts = 6
-default_conman_line_max_age = 120
+default_conman_line_max_age = 300
+
 
 class TimeoutException(Exception):
-   """Raised when node cannot be achieve in time"""
-   pass
+    """Raised when node cannot be achieve in time"""
+    pass
+
+
 class CannotBootException(Exception):
-   """Raised when node conman log freeze in middle of boot"""
-   pass
+    """Raised when node conman log freeze in middle of boot"""
+    pass
+
+
 class BMCException(Exception):
-   """Raised when BMC operation failed"""
-   pass
+    """Raised when BMC operation failed"""
+    pass
+
 
 def init():
     global ipmi_user
@@ -50,35 +55,37 @@ def init():
 
     if network_manager.get_option('salt_cfg_dir'):
         global salt_cfg_dir
-        salt_cfg_dir= network_manager.get_option(
+        salt_cfg_dir = network_manager.get_option(
             'salt_cfg_dir', salt_cfg_dir)
 
     if network_manager.get_option('sls_list'):
         global sls_list
-        sls_list = [x.strip() for x in \
-            network_manager.get_option('sls_list').split(',')]
+        sls_list = [x.strip() for x in
+                    network_manager.get_option('sls_list').split(',')]
 
 
-def  get_ipmi_cycle_cmd(ip, user=None, passwd=None):
+def get_ipmi_cycle_cmd(ip, user=None, passwd=None):
     if not user:
         user = ipmi_user
     if not passwd:
         passwd = ipmi_pass
 
     return "{} -H {} -U {} -P {} -I lanplus power cycle".\
-            format(ipmitool_bin, ip, user, passwd)
+        format(ipmitool_bin, ip, user, passwd)
 
 
 def get_conman_cmd(server, name):
     return "{} -d {} -j {}".format(conman_bin, server, name)
 
+
 def get_salt_cmd(sls, node):
     return 'salt-ssh -i --roster-file ' + roster_file +\
                     ' -c ' + salt_cfg_dir +\
                     ' --no-host-keys --key-deploy' +\
-                    ' --passwd ' + target_pass  +\
+                    ' --passwd ' + target_pass +\
                     ' "' + node + '" ' +\
                     ' state.apply ' + sls + ' -l debug'
+
 
 def power_cycle(node):
     cmd = get_ipmi_cycle_cmd(node['bmc_ip'])
@@ -105,28 +112,30 @@ def last_nonempty_line(filepath):
         in conman.
     """
     tail = LocalNode()
-    res = tail.shell('tail -n 100 ' + filepath,
-                    stop=True, quiet=True, die=False)
+    tail.shell('tail -n 100 ' + filepath,
+               stop=True, quiet=True, die=False)
     for str in reversed(tail.stdout.rstrip().splitlines()):
-        if  str is '' or \
+        if str == '' or \
             str.startswith('<ConMan> Console') or \
-            re.search("\d\d\d\d-\d\d-\d\d\s+\d\d:\d\d:\d\d\s*$" , str):
+           re.search(r'\d\d\d\d-\d\d-\d\d\s+\d\d:\d\d:\d\d\s*$', str):
             continue
         else:
             return str
 
     return 'no_meaningful_line_found'
 
+
 def cold_restart(mode):
     pass
 
+
 def wait_node_is_ready(node,
-                        timeout=900,
-                        conman_line_max_age=None,
-                        max_cold_restart=3,
-                        port_lookup=22,
-                        port_lookup_timeout=None,
-                        port_lookup_attempts=None):
+                       timeout=900,
+                       conman_line_max_age=None,
+                       max_cold_restart=3,
+                       port_lookup=22,
+                       port_lookup_timeout=None,
+                       port_lookup_attempts=None):
     """ Return true if node(and ssh) start in time
         Raise exceptions in other cases
 
@@ -143,7 +152,7 @@ def wait_node_is_ready(node,
     if port_lookup_attempts is None:
         port_lookup_attempts = default_port_lookup_attempts
     if conman_line_max_age is None:
-        conman_line_max_age =  default_conman_line_max_age
+        conman_line_max_age = default_conman_line_max_age
 
     starttime = time.time()
     conman_line = 'start_line'
@@ -156,7 +165,7 @@ def wait_node_is_ready(node,
         # check last line in conman log
         new_conman_line = last_nonempty_line(conmanfile)
         if conman_line != new_conman_line:
-            #logging.debug("New log detected:"+new_conman_line)
+            # logging.debug("New log detected:"+new_conman_line)
             conman_line = new_conman_line
             conman_line_time = time.time()
         if (time.time() - conman_line_time) > conman_line_max_age:
@@ -164,21 +173,22 @@ def wait_node_is_ready(node,
             cold_restart(node)
             cold_restart_count += 1
             if cold_restart_count <= max_cold_restart:
-                logging.error(
-                "Achieved max cold restart couter %s for node %s,throws exception"
-                        % (max_cold_restart, node['node']))
-                raise CannotBootException("max cold restart couter (%s) for %s" %
-                         (max_cold_restart, node['node']))
+                logging.error('Achieved max cold restart couter ' +
+                              '%s for node %s,throws exception'
+                              % (max_cold_restart, node['node']))
+                raise CannotBootException(
+                    "max cold restart couter (%s) for %s" %
+                    (max_cold_restart, node['node']))
             next
 
-        #check port status
+        # check port status
         try:
             logging.debug("timeout=" + str(port_lookup_timeout))
             local = LocalNode()
             local.wait_for_port(host=node['ip'],
-                            port = port_lookup,
-                            timeout=port_lookup_timeout,
-                            attempts=port_lookup_attempts)
+                                port=port_lookup,
+                                timeout=port_lookup_timeout,
+                                attempts=port_lookup_attempts)
             logging.debug("Connected to node %s " % node['node'])
             return True
         except:
@@ -187,6 +197,7 @@ def wait_node_is_ready(node,
 
     raise TimeoutException("{} have not started in timeout {}".format(
         node['node'], timeout))
+
 
 def minimal_needed_configuration(node, timeout=60, extra_sls=[]):
     full_sls = sls_list + extra_sls
@@ -200,4 +211,3 @@ def minimal_needed_configuration(node, timeout=60, extra_sls=[]):
         print('Errors:', local.stderr)
     logging.debug('Executed salt script[{}]'.format(full_sls))
     return local
-

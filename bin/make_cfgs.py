@@ -1,12 +1,10 @@
 #!/usr/bin/env python
-import re
-import json
 import argparse
-import os
 import network_manager
 
 description = """
-Generates configs based on templates for services and pelagos configuration file
+Generates configs based on templates for services and pelagos configuration
+files
 
 for dnsmasq generates a file
     <target dir>/etc/dnsmasq/dnsmasq.d/network_nodes.conf
@@ -21,7 +19,8 @@ with records like this
 for conman generates file <target dir>/states/etc/conman.conf  based on
 template  <target dir>states/etc/conman.conf.tmpl with records like this
 
-    CONSOLE name="ses-client-3" IPMIOPTS="U:<user>,P:<pass>" dev="ipmi:<ipmi server>"
+    CONSOLE name="ses-client-3" IPMIOPTS="U:<user>,P:<pass>" \
+            dev="ipmi:<ipmi server>"
 
 for salt generates roster file <target dir>/deploy.roster
 
@@ -31,31 +30,37 @@ for salt generates roster file <target dir>/deploy.roster
 
 for teuthology generates sql script <target dir>/sql/nodes.sql
 
-    INSERT INTO nodes (name, machine_type, mac_address, is_vm, locked, arch, description)
+    INSERT INTO nodes (name, machine_type, mac_address, is_vm,
+                    locked, arch, description)
         VALUES  ( 'ses-client-3.a.b.de' , 'client' ,
             'aa:bb:cc:dd:67:16' , 'f' , 'f' , 'x86-64' , '' ) ;
 
 also generated udev rules file for predefined network names setup
     #ses-client-1
-    SUBSYSTEM=="net", ACTION=="add", DRIVERS=="?*", ATTR{address}=="aa:bb:cc:dd:67.16", ATTR{dev_id}=="0x0", ATTR{type}=="1", KERNEL=="eth*", NAME="eth0"
+    SUBSYSTEM=="net", ACTION=="add", DRIVERS=="?*", \
+            ATTR{address}=="aa:bb:cc:dd:67.16", ATTR{dev_id}=="0x0", \
+            ATTR{type}=="1", KERNEL=="eth*", NAME="eth0"
 
 """
 
-parser = argparse.ArgumentParser(description=description,
-        formatter_class=argparse.RawDescriptionHelpFormatter)
+parser = argparse.ArgumentParser(
+    description=description,
+    formatter_class=argparse.RawDescriptionHelpFormatter)
 
 
 def reverse_ip(ip):
     return '.'.join(reversed(ip.split('.')))
 
+
 # get host name from probably fqdn
 def short_hostname(fqdn):
     return fqdn.split('.')[0]
 
-#some magic
+
+# some magic
 mgmt_nic = 'eth0'
 hsm_start_number = 2
-hsm_prefix  = 'eth'
+hsm_prefix = 'eth'
 
 # hardcoded but should be parametrized
 pxe_output_file = 'states/etc/dnsmasq/dnsmasq.d/network_nodes.conf'
@@ -103,51 +108,51 @@ for n in nodes:
     print('Process node' + n['node'])
 
     if n['ip_type'] == 'dynamic':
-        pxe_node_lines.append("dhcp-host={mac},{hostname},{ip}"
-                          .format(mac=n['mac'],
-                                hostname=short_hostname(n['node']),
-                                ip=n['ip']))
+        pxe_node_lines.append("dhcp-host={mac},{hostname},{ip}".
+                              format(mac=n['mac'],
+                                     hostname=short_hostname(n['node']),
+                                     ip=n['ip']))
         pxe_node_ptr_lines.append(
-                    "ptr-record={rip}.in-addr.arpa,{hostname}.{domain}"
-                              .format(rip=reverse_ip(n['ip']),
-                                      hostname=short_hostname(n['node']),
-                                      domain=domain))
+                    "ptr-record={rip}.in-addr.arpa,{hostname}.{domain}".
+                    format(rip=reverse_ip(n['ip']),
+                           hostname=short_hostname(n['node']),
+                           domain=domain))
 
     if n['bmc_ip_type'] == 'dynamic':
         pxe_node_lines.append(
-                "dhcp-host={mac},{hostname}-bmc,{ip}"
-                          .format(mac=n['bmc_mac'],
-                                    hostname=short_hostname(n['node']),
-                                    ip=n['bmc_ip']))
+                "dhcp-host={mac},{hostname}-bmc,{ip}".
+                format(mac=n['bmc_mac'],
+                       hostname=short_hostname(n['node']),
+                       ip=n['bmc_ip']))
         pxe_node_ptr_lines.append(
-                "ptr-record={ip}.in-addr.arpa,{hostname}-bmc.{domain}"
-                              .format(ip=reverse_ip(n['bmc_ip']),
-                                      hostname=short_hostname(n['node']),
-                                      domain=domain
-                                      ))
+                "ptr-record={ip}.in-addr.arpa,{hostname}-bmc.{domain}".
+                format(ip=reverse_ip(n['bmc_ip']),
+                       hostname=short_hostname(n['node']),
+                       domain=domain))
 
     if ('hsm_ip_type' in n.keys()) and (n['hsm_ip_type'] == 'dynamic'):
-        pxe_node_lines.append("dhcp-host={mac},{hostname}-hsm,{ip}"
-                          .format(mac=n['hsm_mac'],
-                                hostname=short_hostname(n['node']),
-                                ip=n['hsm_ip']))
-        pxe_node_ptr_lines.append("ptr-record={rip}.in-addr.arpa,{hostname}-hsm"
-                              .format(
-                                rip=reverse_ip(n['hsm_ip']),
-                                hostname=short_hostname(n['node'])))
+        pxe_node_lines.append("dhcp-host={mac},{hostname}-hsm,{ip}".
+                              format(mac=n['hsm_mac'],
+                                     hostname=short_hostname(n['node']),
+                                     ip=n['hsm_ip']))
+        pxe_node_ptr_lines.append(
+            "ptr-record={rip}.in-addr.arpa,{hostname}-hsm".
+            format(rip=reverse_ip(n['hsm_ip']),
+                   hostname=short_hostname(n['node'])))
 
-    consoles = consoles +\
-               "\nCONSOLE name=\"{hostname}\" IPMIOPTS=\"U:{user},P:{passwd}\" dev=\"ipmi:{ip}\""\
-                   .format(hostname=short_hostname(n['node']),
+    consoles = (consoles + '\nCONSOLE name="{hostname}"'.format(
+                   hostname=short_hostname(n['node'])) +
+                'IPMIOPTS="U:{user},P:{passwd}" dev="ipmi:{ip}"\n'.format(
                         user=bmc_user,
                         passwd=bmc_pass,
-                        ip=n['bmc_ip'])
-    roster_recors = roster_recors +"{fqdn}:\n  host: {ip}\n  user: root\n".\
-                    format(fqdn=n['node'], ip=n['ip'])
+                        ip=n['bmc_ip']))
+    roster_recors = (roster_recors +
+                     "{fqdn}:\n  host: {ip}\n  user: root\n".format(
+                        fqdn=n['node'], ip=n['ip']))
     if 't_exclude' in n.keys() and n['t_exclude'] != 'yes':
         sql_update_body = [
-                "'%s'" % n['node'] ,
-                "'%s'" % n['t_machine_type'] ,
+                "'%s'" % n['node'],
+                "'%s'" % n['t_machine_type'],
                 "'%s'" % n['mac'],
                 "'f'",
                 "'f'",
@@ -155,22 +160,21 @@ for n in nodes:
                 "'%s'" % n['comment']
             ]
         nodes_sql_lines.append(
-            sql_line_prefix +\
+            sql_line_prefix +
             " ( " + ", ".join(sql_update_body) + " ) ;\n"
         )
 
     udev_lines.append(
-        (   "#predefined rules for node  '%s'\n" % (n['node'])+\
-            'SUBSYSTEM=="net", ACTION=="add", DRIVERS=="?*",' +\
-            ' ATTR{address}=="%s",' % (n['mac']) +\
-            ' KERNEL=="eth*", NAME="%s" \n' % mgmt_nic
-        )
+        "#predefined rules for node  '%s'\n" % (n['node']) +
+        'SUBSYSTEM=="net", ACTION=="add", DRIVERS=="?*",' +
+        ' ATTR{address}=="%s",' % (n['mac']) +
+        ' KERNEL=="eth*", NAME="%s" \n' % mgmt_nic
     )
     if 'hsm_mac' in n.keys() and isinstance(n['hsm_mac'], list):
         for i in range(0, len(n['hsm_mac'])):
             udev_lines.append(
-                'SUBSYSTEM=="net", ACTION=="add", DRIVERS=="?*",' +\
-                ' ATTR{address}=="%s",' % n['hsm_mac'][i] +\
+                'SUBSYSTEM=="net", ACTION=="add", DRIVERS=="?*",' +
+                ' ATTR{address}=="%s",' % n['hsm_mac'][i] +
                 ' KERNEL=="eth*", NAME="eth%d" \n' % (hsm_start_number + i)
             )
 
@@ -178,8 +182,7 @@ for n in nodes:
 with open(target_dir_prefix + pxe_output_file, 'w') as ofile:
     ofile.write("\n".join(pxe_node_lines)+"\n")
     ofile.write("\n".join(pxe_node_ptr_lines)+"\n")
-print("File [{}] written".format(target_dir_prefix +
-                                    pxe_output_file))
+print("File [{}] written".format(target_dir_prefix + pxe_output_file))
 
 # ----------- conman ---------------
 lines = ""
@@ -201,8 +204,7 @@ print("File [{}] written".format(target_dir_prefix + roster_file))
 
 with open(target_dir_prefix + sql_script_file, 'w') as ofile:
     ofile.write("".join(nodes_sql_lines))
-print("File [{}] written".format(target_dir_prefix +
-                                     sql_script_file))
+print("File [{}] written".format(target_dir_prefix + sql_script_file))
 
 # ----------- udev file ---------------
 udev_path = target_dir_prefix + udev_file

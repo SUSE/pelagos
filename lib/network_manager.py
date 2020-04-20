@@ -9,18 +9,20 @@ data_file = ''
 
 
 def load_data_file():
-#    data = []
     with open(data_file) as json_file:
         data = json.load(json_file)
     return data
+
 
 def get_option(opt_name, default_value=""):
     if opt_name in load_data_file():
         return load_data_file()[opt_name]
     return default_value
 
+
 def get_nodes():
     return load_data_file()['nodes']
+
 
 def get_node_by_name(name, exception=True):
     for n in load_data_file()['nodes']:

@@ -77,11 +77,11 @@ class PxelinuxCfgTest(unittest.TestCase):
             lines = ifile.readlines()
         cfg = "\n".join(lines)
         self.assertRegex(cfg,
-                         'MENU\s+LABEL\s+Boot\s+local\s+'
-                         'hard\s+drive\s+LOCALBOOT\s-1',
+                         r'MENU\s+LABEL\s+Boot\s+local\s+'
+                         r'hard\s+drive\s+LOCALBOOT\s-1',
                          'check generated local data #1')
         self.assertRegex(cfg,
-                         'APPEND\s+pxelinux\.cfg\/default',
+                         r'APPEND\s+pxelinux\.cfg\/default',
                          'check generated local data #2')
 
         pxelinux_cfg.set_tftp_dir(node, 'sle-15.1-0.1.1-29.1')
@@ -98,7 +98,7 @@ class PxelinuxCfgTest(unittest.TestCase):
                          'INITRD sle-15.1-0.1.1-29.1/pxeboot.initrd.xz',
                          'check os specific generated data #2')
         self.assertRegex(cfg,
-                         'rd.kiwi.install.pxe\s+rd.kiwi.install.image=',
+                         r'rd.kiwi.install.pxe\s+rd.kiwi.install.image=',
                          'check os specific generated data #3')
 
         pxelinux_cfg.cleanup_tftp_dir(node)
