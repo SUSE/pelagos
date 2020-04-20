@@ -1,33 +1,40 @@
-import unittest
-import sys
-import json
-import shutil
-import os
-import logging
-import time
-from flask import jsonify, abort
 import flask_tasks
+import json
+import logging
+import shutil
+import sys
+import os
+import time
+import unittest
+
+from os import path
 
 import network_manager
 import pelagos
 import hw_node
 import pxelinux_cfg
+import threaded_logging
 
-logging.basicConfig(format='%(asctime)s | %(name)s | %(message)s',
-                    level=logging.DEBUG)
 test_pxelinux_cfg_root_dir = '/tmp/tftp'
 test_conman_dir = '/tmp/conman'
+test_log_dir = '/tmp/pelagos_logs/'
 test_pxelinux_cfg_dir = test_pxelinux_cfg_root_dir + '/pxelinux.cfg'
 
 
 class pelagosTest(unittest.TestCase):
 
-    def setUp(self):
+    @classmethod
+    def setUpClass(self):
+        threaded_logging.log_prefix = test_log_dir
+        threaded_logging.config_root_logger()
 
+    def setUp(self):
         network_manager.data_file = 'test/test_network_cfg.json'
+        flask_tasks.clean_call_timeout = 1
+        flask_tasks.data_life_time = 300
+        # set flask sent trace to console
+        pelagos.app.testing = True
         self.app = pelagos.app.test_client()
-        flask_tasks.testing = True
-        # self.app.config['TESTING'] = True
 
         shutil.rmtree(test_pxelinux_cfg_root_dir, ignore_errors=True)
         os.makedirs(test_pxelinux_cfg_dir, exist_ok=True)
@@ -38,10 +45,19 @@ class pelagosTest(unittest.TestCase):
         pxelinux_cfg.pxelinux_cfg_dir = test_pxelinux_cfg_dir
         pxelinux_cfg.tftp_cfg_dir = test_pxelinux_cfg_root_dir
 
+        shutil.rmtree(test_log_dir, ignore_errors=True)
+        os.makedirs(test_log_dir, exist_ok=True)
+
+    @classmethod
+    def tearDownClass(self):
+        flask_tasks.stop_cleanup = True
+        # timeout for cleanup thread stop
+        time.sleep(5)
+
     def tearDown(self):
         shutil.rmtree(test_pxelinux_cfg_root_dir, ignore_errors=True)
         shutil.rmtree(test_conman_dir, ignore_errors=True)
-        logging.debug("Exiting from tearDown")
+        logging.debug("tearDown completed")
 
     def test_pxe_root(self):
         response = self.app.get('/')
@@ -143,30 +159,8 @@ class pelagosTest(unittest.TestCase):
         pxe_file = test_pxelinux_cfg_dir + '/01-aa-bb-cc-dd-00-7c'
         self.assertFalse(os.path.isfile(pxe_file), 'Check pxe file absence')
 
-    def do_flask_task_request(self,
-                              request,
-                              post_dict,
-                              prefix,
-                              next_level_status='202 ACCEPTED'):
-        response = self.app.post(request,
-                                 data=post_dict)
-        self.assertEqual(response.status, '202 ACCEPTED', prefix)
-        logging.debug(prefix + " response headers to request")
-        logging.debug(response.headers)
-        location = response.headers.get('Location')
-        logging.debug(prefix + " Location: " + location)
-        taskid = response.headers.get('TaskID')
-        logging.debug(prefix + " TaskID: " + taskid)
-        # timeout for provision negative tests
-        time.sleep(1)
-        response_1 = self.app.get(location)
-        logging.debug(prefix + "next level response headers")
-        logging.debug(response_1.headers)
-        self.assertEqual(response_1.status, next_level_status, prefix)
-        return location, taskid
-
     def test_pxe_provision_node_negative(self):
-
+        pelagos.app.simulate_mode = ''
         # unknown os
         location, id = self.do_flask_task_request(
             '/node/provision',
@@ -262,14 +256,39 @@ class pelagosTest(unittest.TestCase):
         self.assertRegex(response_5.get_data(as_text=True),
                          '502 Bad Gateway')
 
+    def test_provision_log_cleanup(self):
+        (os_id, test_dir) = self.prepare_correct_boot_env()
+        # scenario:
+        # - start a provision
+        # - check existence  log on fs
+        # - wait for end of cleanup time
+        # - check log cleanup
+
+        flask_tasks.data_life_time = 5
+        time.sleep(10)
+        location, tid = self.do_flask_task_request(
+            '/node/provision',
+            {'os': os_id,
+             'node': 'test_node'},
+            "test thread")
+        self.assertIsNotNone(flask_tasks.tasks[tid],
+                             'Provision thread exists')
+        log_file_name = flask_tasks.tasks[tid]['log_file']
+        self.assertTrue(path.exists(log_file_name))
+        log_data = self.app.get('/tasks/log/'+tid)
+        self.assertRegex(log_data.get_data(as_text=True),
+                         r'Found\s+os\s+\[sle-15.1-0.1.1-29.1\]',
+                         'Chek log content')
+        time.sleep(15)
+        logging.debug("Cleanup should happens, check it")
+        self.assertFalse(tid in flask_tasks.tasks)
+        self.assertFalse(path.exists(log_file_name))
+        removed_log_result = self.app.get('/tasks/log/'+tid)
+        self.assertEqual(removed_log_result.status,
+                         '404 NOT FOUND', 'Log removed')
+
     def test_pxe_provision_node_threaded(self):
-        # reset list
-        os_id = 'sle-15.1-0.1.1-29.1'
-        flask_tasks.tasks = {}
-        pelagos.app.simulate_mode = 'fast'
-        test_dir = '%s/%s' % (test_pxelinux_cfg_root_dir, os_id)
-        logging.debug("Create test dir: " + test_dir)
-        os.makedirs(test_dir)
+        (os_id, test_dir) = self.prepare_correct_boot_env()
 
         # 3 items in queue
         # pxelinux_cfg.provision_node = \
@@ -320,6 +339,38 @@ class pelagosTest(unittest.TestCase):
         self.assertRegex(statuses[id1]['status'], 'done')
         self.assertRegex(status22['node']['ip'], "1.2.3.14")
         self.assertRegex(status23['node']['ip'], "1.2.3.15")
+
+    # utility functions for tests
+    def do_flask_task_request(self,
+                              request,
+                              post_dict,
+                              prefix,
+                              next_level_status='202 ACCEPTED'):
+        response = self.app.post(request,
+                                 data=post_dict)
+        self.assertEqual(response.status, '202 ACCEPTED', prefix)
+        logging.debug(prefix + " response headers to request")
+        logging.debug(response.headers)
+        location = response.headers.get('Location')
+        logging.debug(prefix + " Location: " + location)
+        taskid = response.headers.get('TaskID')
+        logging.debug(prefix + " TaskID: " + taskid)
+        # timeout for provision negative tests
+        time.sleep(1)
+        response_1 = self.app.get(location)
+        logging.debug(prefix + "next level response headers")
+        logging.debug(response_1.headers)
+        self.assertEqual(response_1.status, next_level_status, prefix)
+        return location, taskid
+
+    def prepare_correct_boot_env(self):
+        os_id = 'sle-15.1-0.1.1-29.1'
+        flask_tasks.tasks = {}
+        pelagos.app.simulate_mode = 'fast'
+        test_dir = '%s/%s' % (test_pxelinux_cfg_root_dir, os_id)
+        logging.debug("Create test dir: " + test_dir)
+        os.makedirs(test_dir)
+        return os_id, test_dir
 
 
 if __name__ == '__main__':
