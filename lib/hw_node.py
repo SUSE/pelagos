@@ -94,8 +94,12 @@ def power_cycle(node):
         local.shell(cmd, trace=True)
     except:
         BMCException(sys.exc_info()[1])
+
+    logging.debug('Status:', local.status)
+    logging.debug('Output:', local.stdout.rstrip())
+    logging.debug('Errors:', local.stderr)
     if local.status == 0:
-        print("node restarted")
+        logging.debug("node restarted")
         # TODO check retrun results from results
     else:
         raise BMCException(
@@ -206,8 +210,8 @@ def minimal_needed_configuration(node, timeout=60, extra_sls=[]):
         local = LocalNode()
         local.pwd()
         local.shell(get_salt_cmd(sls, node['node']))
-        print('Status:', local.status)
-        print('Output:', local.stdout.rstrip())
-        print('Errors:', local.stderr)
+        logging.debug('Status:', local.status)
+        logging.debug('Output:', local.stdout.rstrip())
+        logging.debug('Errors:', local.stderr)
     logging.debug('Executed salt script[{}]'.format(full_sls))
     return local

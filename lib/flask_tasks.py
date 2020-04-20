@@ -2,6 +2,7 @@
 # mostly copied from https://github.com/miguelgrinberg/flack/commit/0c372464b341a2df60ef8d93bdca2001009a42b5?diff=unified
 # video https://www.youtube.com/watch?v=tdIIJuPh3SI&feature=youtu.be
 #
+import os
 import json
 import logging
 import sys
@@ -15,6 +16,8 @@ from flask import Blueprint, abort, current_app, request, jsonify
 from flask import url_for as _url_for, _request_ctx_stack
 from werkzeug.exceptions import HTTPException, InternalServerError
 
+import threaded_logging
+
 logging.basicConfig(format='%(asctime)s | %(name)s | %(message)s',
                     level=logging.DEBUG)
 
@@ -22,6 +25,11 @@ logging.basicConfig(format='%(asctime)s | %(name)s | %(message)s',
 tasks_bp = Blueprint('tasks', __name__)
 tasks = {}
 testing = False
+# in sec
+data_life_time = 12 * 60 * 60
+clean_call_timeout = 60
+cleanup_thread = None
+stop_cleanup = False
 
 
 def timestamp():
@@ -51,23 +59,26 @@ def before_first_request():
     def clean_old_tasks():
         logging.debug("Cleanup old tasks")
         """
-        This function cleans up old tasks from our in-memory data structure.
+        This function cleans up old tasks from our in-memory data
+        structure and on disk logs.
         """
-        global tasks
-        while True:
-            # Only keep tasks that are running or that finished less than 5
-            # minutes ago.
-            five_min_ago = timestamp() - 5 * 60
-            tasks = {id: task for id, task in tasks.items()
-                     if 't' not in task or task['t'] > five_min_ago}
-            time.sleep(60)
+        global tasks, stop_cleanup
+        while not stop_cleanup:
+            # Only keep tasks that are running or that finished less than
+            # data_life_time sec ago.
+            # logging.debug("###run cleanups")
+            current_time = timestamp()
+            cleanup_list = [i for i, t in tasks.items()
+                            if 'endtime' in t and
+                            t['endtime'] > -1 and
+                            current_time - t['endtime'] > data_life_time]
+            for i in cleanup_list:
+                os.remove(tasks.pop(i)['log_file'])
+            time.sleep(clean_call_timeout)
 
-    if not testing:
-        logging.debug("Production mode, run cleanups")
-        threading.Thread(target=clean_old_tasks)
-        # thread.start()
-    else:
-        logging.debug("Testing mode, no cleanup!")
+    logging.debug('Run cleanup thread')
+    cleanup_thread = threading.Thread(target=clean_old_tasks)
+    cleanup_thread.start()
 
 
 def async_task(f):
@@ -84,13 +95,18 @@ def async_task(f):
                 try:
                     # Run the route function and record the response
                     logging.debug("Executing target function")
+                    tasks[task_id]['thread_name'] = threading.Thread.getName(
+                        threading.current_thread())
+                    tasks[task_id]['log_file'] = threaded_logging. \
+                        get_log_name(tasks[task_id]['thread_name'])
                     tasks[task_id]['starttime'] = timestamp()
                     tasks[task_id]['endtime'] = -1
                     tasks[task_id]['started'] = True
                     tasks[task_id]['rv'] = f(*args, **kwargs)
                 except HTTPException as e:
                     logging.debug("Caught http exception:" + str(e))
-                    tasks[task_id]['rv'] = current_app.handle_http_exception(e)
+                    tasks[task_id]['rv'] = \
+                        current_app.handle_http_exception(e)
                     traceback.print_exc(file=sys.stdout)
                 except Exception as e:
                     logging.debug("Caught exception:" + str(e))
@@ -179,6 +195,17 @@ def get_statuses():
         res[task] = t
     logging.debug(res)
     return jsonify(res)
+
+
+@tasks_bp.route('/log/<task_id>', methods=['GET'])
+def get_log(task_id):
+    task = tasks.get(task_id)
+    if task is None:
+        abort(404, 'Task "%s" is not found' % task_id)
+    logging.debug('Task %s:%s found, loading log' % (task_id, str(task)))
+    with open(tasks[task_id]['log_file'], 'r') as file:
+        data = file.read()
+    return jsonify({'TaskID': task_id, 'LogData': data})
 
 
 @tasks_bp.route('/cancel/<id>', methods=['GET'])

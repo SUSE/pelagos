@@ -5,12 +5,12 @@ from flask_tasks import tasks_bp as tasks_blueprint
 from flask_tasks import async_task, tasks
 
 import argparse
-import logging
 import sys
 
+import hw_node
 import network_manager
 import pxelinux_cfg
-import hw_node
+import threaded_logging
 
 description = """
 
@@ -32,15 +32,12 @@ parser.add_argument('--simulation', dest='simulation', default='',
                     help='Simulation mode, "fast" or "medium" supported ' +
                     'now, used for testing')
 
-logging.basicConfig(format='%(asctime)s | %(name)s | %(message)s',
-                    level=logging.DEBUG)
-
 app = Flask('pelagos')
 
 # Register async tasks support
 app.register_blueprint(tasks_blueprint, url_prefix='/tasks')
 app.ver_name = 'pelagos'
-app.version = '0.0.3'
+app.version = '0.0.4'
 app.simulate_mode = ''
 
 
@@ -143,6 +140,9 @@ def rmbootrecord_node(node_id):
 @app.route('/node/provision', methods=['POST'])
 @async_task
 def provision_node():
+    # start separated logging ASAP
+    # cleanup in flask 'clean_old_taks'
+    threaded_logging.start()
     if request.method != 'POST':
         return abort(405, "Use POST method")
     app.logger.info("Data for provision: [%s]" % str(
@@ -194,6 +194,8 @@ def print_help():
 
 if __name__ == '__main__':
     args = parser.parse_args()
+    threaded_logging.config_root_logger()
+
     network_manager.data_file = args.config
     print("Set configuration file: " + network_manager.data_file)
 
