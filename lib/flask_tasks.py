@@ -66,7 +66,6 @@ def before_first_request():
         while not stop_cleanup:
             # Only keep tasks that are running or finished less than
             # data_life_time sec ago.
-            # logging.debug("###run cleanups")
             current_time = timestamp()
             cleanup_list = [i for i, t in tasks.items()
                             if 'endtime' in t and
