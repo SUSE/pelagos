@@ -140,7 +140,7 @@ def rmbootrecord_node(node_id):
 @app.route('/node/provision', methods=['POST'])
 @async_task
 def provision_node():
-    # start separated logging ASAP
+    # start logging for new thread to file ASAP
     # cleanup in flask 'clean_old_taks'
     threaded_logging.start()
     if request.method != 'POST':
