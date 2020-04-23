@@ -6,9 +6,6 @@ import re
 import sys
 import time
 
-logging.basicConfig(format='%(asctime)s | %(name)s | %(message)s',
-                    level=logging.DEBUG)
-
 conman_server = ''
 ipmitool_bin = 'ipmitool'
 conman_log_prefix = '/var/log/conman/console.'
@@ -22,6 +19,7 @@ sls_list = []
 default_port_lookup_timeout = 5
 default_port_lookup_attempts = 6
 default_conman_line_max_age = 300
+default_cold_restart_timeout = 30
 
 
 class TimeoutException(Exception):
@@ -64,14 +62,14 @@ def init():
                     network_manager.get_option('sls_list').split(',')]
 
 
-def get_ipmi_cycle_cmd(ip, user=None, passwd=None):
+def get_ipmi_cmd(ip, cmd='power cycle', user=None, passwd=None):
     if not user:
         user = ipmi_user
     if not passwd:
         passwd = ipmi_pass
 
-    return "{} -H {} -U {} -P {} -I lanplus power cycle".\
-        format(ipmitool_bin, ip, user, passwd)
+    return "{} -H {} -U {} -P {} -I lanplus {}".\
+        format(ipmitool_bin, ip, user, passwd, cmd)
 
 
 def get_conman_cmd(server, name):
@@ -87,21 +85,23 @@ def get_salt_cmd(sls, node):
                     ' state.apply ' + sls + ' -l debug'
 
 
-def power_cycle(node):
-    cmd = get_ipmi_cycle_cmd(node['bmc_ip'])
+def exec_bmc_command(node, ipmi_command):
+    cmd = get_ipmi_cmd(node['bmc_ip'], ipmi_command)
     local = LocalNode()
     try:
+        logging.debug('Execute command: ' + cmd)
         local.shell(cmd, trace=True)
     except:
         BMCException(sys.exc_info()[1])
-
-    logging.debug('Status:', local.status)
-    logging.debug('Output:', local.stdout.rstrip())
-    logging.debug('Errors:', local.stderr)
+    logging.debug('Status:' + str(local.status))
+    logging.debug('Status:' + str(local.status))
+    logging.debug('Output:' + local.stdout.rstrip())
+    logging.debug('Errors:' + local.stderr)
     if local.status == 0:
-        logging.debug("node restarted")
+        logging.debug("Command '%s' executed successfully" % cmd)
         # TODO check retrun results from results
     else:
+        logging.debug("Command '%s' failed, raise exception" % cmd)
         raise BMCException(
             "ipmitool call failed with status[{}], stdout [{}], stderr[{}]".
             format(local.status,
@@ -127,10 +127,6 @@ def last_nonempty_line(filepath):
             return str
 
     return 'no_meaningful_line_found'
-
-
-def cold_restart(mode):
-    pass
 
 
 def wait_node_is_ready(node,
@@ -174,15 +170,18 @@ def wait_node_is_ready(node,
             conman_line_time = time.time()
         if (time.time() - conman_line_time) > conman_line_max_age:
             logging.info("Node boot failure detected, make cold restart")
-            cold_restart(node)
-            cold_restart_count += 1
-            if cold_restart_count <= max_cold_restart:
+            exec_bmc_command(node, 'power off')
+            time.sleep(default_cold_restart_timeout)
+            exec_bmc_command(node, 'power on')
+            if cold_restart_count >= max_cold_restart:
                 logging.error('Achieved max cold restart couter ' +
                               '%s for node %s,throws exception'
                               % (max_cold_restart, node['node']))
                 raise CannotBootException(
                     "max cold restart couter (%s) for %s" %
                     (max_cold_restart, node['node']))
+            cold_restart_count += 1
+            conman_line_time = time.time()
             next
 
         # check port status
@@ -209,9 +208,13 @@ def minimal_needed_configuration(node, timeout=60, extra_sls=[]):
     for sls in full_sls:
         local = LocalNode()
         local.pwd()
-        local.shell(get_salt_cmd(sls, node['node']))
-        logging.debug('Status:', local.status)
-        logging.debug('Output:', local.stdout.rstrip())
-        logging.debug('Errors:', local.stderr)
+        try:
+            local.shell(get_salt_cmd(sls, node['node']))
+        except:
+            raise Exception('Salt execution failed: ' + sys.exc_info()[1])
+        finally:
+            logging.debug('Salt Status:' + str(local.status))
+            logging.debug('Satl Output:' + local.stdout.rstrip())
+            logging.debug('Salt Errors:' + local.stderr)
     logging.debug('Executed salt script[{}]'.format(full_sls))
     return local

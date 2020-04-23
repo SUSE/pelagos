@@ -3,3 +3,4 @@
 master
 deploy.roster
 .env
+.pytest_cache
