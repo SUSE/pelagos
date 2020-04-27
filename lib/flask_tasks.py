@@ -25,9 +25,8 @@ logging.basicConfig(format='%(asctime)s | %(name)s | %(message)s',
 tasks_bp = Blueprint('tasks', __name__)
 tasks = {}
 testing = False
-# in sec
-data_life_time = 12 * 60 * 60
-clean_call_timeout = 60
+data_life_time_sec = 12 * 60 * 60
+clean_call_timeout_sec = 60
 cleanup_thread = None
 stop_cleanup = False
 
@@ -65,27 +64,27 @@ def before_first_request():
         global tasks, stop_cleanup
         while not stop_cleanup:
             # Only keep tasks that are running or finished less than
-            # data_life_time sec ago.
+            # data_life_time_sec ago.
             current_time = timestamp()
             cleanup_list = [i for i, t in tasks.items()
                             if 'endtime' in t and
                             t['endtime'] > -1 and
-                            current_time - t['endtime'] > data_life_time]
+                            current_time - t['endtime'] > data_life_time_sec]
             for i in cleanup_list:
                 os.remove(tasks.pop(i)['log_file'])
-            time.sleep(clean_call_timeout)
+            time.sleep(clean_call_timeout_sec)
 
     logging.debug('Run cleanup thread')
     cleanup_thread = threading.Thread(target=clean_old_tasks)
     cleanup_thread.start()
 
 
-def async_task(f):
+def async_task(target_func):
     """
     This decorator transforms a sync route to asynchronous by running it
     in a background thread.
     """
-    @wraps(f)
+    @wraps(target_func)
     def wrapped(*args, **kwargs):
         def task(app, environ):
             # Create a request context similar to that of the original request
@@ -101,7 +100,7 @@ def async_task(f):
                     tasks[task_id]['starttime'] = timestamp()
                     tasks[task_id]['endtime'] = -1
                     tasks[task_id]['started'] = True
-                    tasks[task_id]['rv'] = f(*args, **kwargs)
+                    tasks[task_id]['rv'] = target_func(*args, **kwargs)
                 except HTTPException as e:
                     logging.debug("Caught http exception:" + str(e))
                     tasks[task_id]['rv'] = \
@@ -116,9 +115,8 @@ def async_task(f):
                     # We record the time of the response, to help in garbage
                     # collecting old tasks
                     tasks[task_id]['status'] = 'done'
-                    logging.debug("target function completed")
                     tasks[task_id]['endtime'] = timestamp()
-
+                    logging.debug("target function completed")
         # Assign an id to the asynchronous task
         task_id = uuid.uuid4().hex
 

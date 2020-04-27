@@ -69,7 +69,7 @@ def get_log_name(thread_name):
 
 
 def start(thread_name=None):
-    if thread_name is None:
+    if not thread_name:
         thread_name = threading.Thread.getName(
             threading.current_thread())
     logging.debug('New log name is:' +

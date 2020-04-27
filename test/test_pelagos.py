@@ -30,8 +30,8 @@ class pelagosTest(unittest.TestCase):
 
     def setUp(self):
         network_manager.data_file = 'test/test_network_cfg.json'
-        flask_tasks.clean_call_timeout = 1
-        flask_tasks.data_life_time = 300
+        flask_tasks.clean_call_timeout_sec = 1
+        flask_tasks.data_life_time_sec = 300
         # set flask sent trace to console
         pelagos.app.testing = True
         self.app = pelagos.app.test_client()
@@ -207,7 +207,7 @@ class pelagosTest(unittest.TestCase):
              'node': 'test_node'},
             'provision timeout test')
         logging.debug('Wait for bmc failure')
-        time.sleep(20)
+        time.sleep(30)
         response_3 = self.app.get(location)
         logging.debug('next level response headers #3')
         logging.debug(response_3.get_data())
@@ -243,12 +243,13 @@ class pelagosTest(unittest.TestCase):
         # frozen conman output/max restarts
         pxelinux_cfg.wait_node_is_ready_timeout = 30
         hw_node.default_conman_line_max_age = 3
+        hw_node.default_cold_restart_timeout = 1
         location, tid = self.do_flask_task_request(
             '/node/provision',
             {'os': os_id,
                 'node': 'test_node'},
             'provision timeout test')
-        logging.debug('Wait for server reaction 120s')
+        logging.debug('Wait for server reaction')
         time.sleep(20)
         response_5 = self.app.get(location)
         logging.debug('next level response headers #5')
@@ -264,7 +265,7 @@ class pelagosTest(unittest.TestCase):
         # - wait for end of cleanup time
         # - check log cleanup
 
-        flask_tasks.data_life_time = 5
+        flask_tasks.data_life_time_sec = 5
         time.sleep(10)
         location, tid = self.do_flask_task_request(
             '/node/provision',

@@ -94,7 +94,6 @@ def exec_bmc_command(node, ipmi_command):
     except:
         BMCException(sys.exc_info()[1])
     logging.debug('Status:' + str(local.status))
-    logging.debug('Status:' + str(local.status))
     logging.debug('Output:' + local.stdout.rstrip())
     logging.debug('Errors:' + local.stderr)
     if local.status == 0:
@@ -195,7 +194,7 @@ def wait_node_is_ready(node,
             logging.debug("Connected to node %s " % node['node'])
             return True
         except:
-            logging.error("Node {} have not started in timeout {}".format(
+            logging.debug("Node {} have not started in timeout {}".format(
                 node['node'], port_lookup_timeout))
 
     raise TimeoutException("{} have not started in timeout {}".format(
