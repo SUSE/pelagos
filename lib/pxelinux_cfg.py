@@ -225,7 +225,7 @@ def provision_node_simulate_failure(node, os_id):
 
 def provision_node(node, os_id, extra_sls=[]):
     set_tftp_dir(node, os_id)
-    hw_node.power_cycle(node)
+    hw_node.exec_bmc_command(node, 'power cycle')
     time.sleep(default_undoubted_hw_start_timeout)
     hw_node.wait_node_is_ready(node, timeout=wait_node_is_ready_timeout)
     if not (os_id == id_local_boot or
