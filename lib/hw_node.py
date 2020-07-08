@@ -18,7 +18,7 @@ salt_cfg_dir = '.'
 sls_list = []
 default_port_lookup_timeout = 5
 default_port_lookup_attempts = 6
-default_conman_line_max_age = 300
+default_conman_line_max_age = 700
 default_cold_restart_timeout = 30
 
 
@@ -128,6 +128,14 @@ def last_nonempty_line(filepath):
     return 'no_meaningful_line_found'
 
 
+def get_provision_ip(node):
+    host = node['ip']
+    logging.debug('node = ' + str(node))
+    if 'boot_ip' in node:
+        host = node['boot_ip']
+    return host
+
+
 def wait_node_is_ready(node,
                        timeout=900,
                        conman_line_max_age=None,
@@ -187,7 +195,7 @@ def wait_node_is_ready(node,
         try:
             logging.debug("timeout=" + str(port_lookup_timeout))
             local = LocalNode()
-            local.wait_for_port(host=node['ip'],
+            local.wait_for_port(host=get_provision_ip(node),
                                 port=port_lookup,
                                 timeout=port_lookup_timeout,
                                 attempts=port_lookup_attempts)
@@ -195,10 +203,10 @@ def wait_node_is_ready(node,
             return True
         except:
             logging.debug("Node {} have not started in timeout {}".format(
-                node['node'], port_lookup_timeout))
+                get_provision_ip(node), port_lookup_timeout))
 
     raise TimeoutException("{} have not started in timeout {}".format(
-        node['node'], timeout))
+        get_provision_ip(node), timeout))
 
 
 def minimal_needed_configuration(node, timeout=60, extra_sls=[]):
@@ -208,7 +216,7 @@ def minimal_needed_configuration(node, timeout=60, extra_sls=[]):
         local = LocalNode()
         local.pwd()
         try:
-            local.shell(get_salt_cmd(sls, node['node']))
+            local.shell(get_salt_cmd(sls, get_provision_ip(node)))
         except:
             raise Exception('Salt execution failed: ' + sys.exc_info()[1])
         finally:
@@ -216,4 +224,3 @@ def minimal_needed_configuration(node, timeout=60, extra_sls=[]):
             logging.debug('Satl Output:' + local.stdout.rstrip())
             logging.debug('Salt Errors:' + local.stderr)
     logging.debug('Executed salt script[{}]'.format(full_sls))
-    return local

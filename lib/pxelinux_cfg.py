@@ -123,6 +123,9 @@ def get_boot_record_for_os(node, os_id):
     else:
         image = ''
         # split str same as 'sle-15.1-0.1.1-29.1' to version
+        print('****************************')
+        print(get_os_dir(os_id))
+        print('----------------------------')
         version = \
             re.search(r'(\w+)\-(\d+)\.(\d+)\-(\d+\.\d+\.\d+)\-(\d+\.\d+)',
                       get_os_dir(os_id))
@@ -228,8 +231,15 @@ def provision_node(node, os_id, extra_sls=[]):
     hw_node.exec_bmc_command(node, 'power cycle')
     time.sleep(default_undoubted_hw_start_timeout)
     hw_node.wait_node_is_ready(node, timeout=wait_node_is_ready_timeout)
+    set_tftp_dir(node, id_local_boot)
     if not (os_id == id_local_boot or
             os_id == id_maintenance_boot):
         hw_node.minimal_needed_configuration(node, extra_sls=extra_sls)
-    set_tftp_dir(node, id_local_boot)
+    if ('provision_need_reboot' in node.keys() and
+            node['provision_need_reboot'] == 'yes'):
+        hw_node.exec_bmc_command(node, 'power cycle')
+        time.sleep(default_undoubted_hw_start_timeout)
+        hw_node.wait_node_is_ready(
+            node, timeout=wait_node_is_ready_timeout)
+        return 2
     return 1

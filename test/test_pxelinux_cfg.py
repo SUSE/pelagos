@@ -5,11 +5,12 @@ import logging
 
 import pxelinux_cfg
 import network_manager
+import hw_node
 
 logging.basicConfig(format='%(asctime)s | %(name)s | %(message)s',
                     level=logging.DEBUG)
 tftp_cfg_dir = '/tmp/tftp'
-pxelinux_cfg_dir = "/tmp/tftp/pxelinux_cfg"
+pxelinux_cfg_dir = '/tmp/tftp/pxelinux_cfg'
 
 
 class PxelinuxCfgTest(unittest.TestCase):
@@ -18,7 +19,8 @@ class PxelinuxCfgTest(unittest.TestCase):
         network_manager.data_file = 'test/test_network_cfg.json'
 
         shutil.rmtree(tftp_cfg_dir, ignore_errors=True)
-        os.makedirs(tftp_cfg_dir, exist_ok=True)
+        os.makedirs(tftp_cfg_dir)
+
         os.makedirs(pxelinux_cfg_dir, exist_ok=True)
         pxelinux_cfg.tftp_cfg_dir = tftp_cfg_dir
         pxelinux_cfg.default_pxe_server = "1.2.3.4"
@@ -29,6 +31,7 @@ class PxelinuxCfgTest(unittest.TestCase):
 
     def tearDown(self):
         shutil.rmtree(tftp_cfg_dir, ignore_errors=True)
+        pass
 
     def test_list_os(self):
         tdir = 'sle-15.1-0.1.1-29.1'
@@ -133,6 +136,34 @@ class PxelinuxCfgTest(unittest.TestCase):
         self.assertEqual(lines[0], '111')
 
         logging.debug("---")
+
+    def test_provision_node(self):
+        # test awaited open port 22 locally
+        # TODO add for case when no ssh port on local port
+        # code for open port
+        tdir = 'sle-15.1-0.1.1-29.1'
+        os.makedirs(tftp_cfg_dir + '/' + tdir)
+        os.symlink(tftp_cfg_dir + '/' + tdir,
+                   tftp_cfg_dir + '/sle-15.1')
+        hw_node.default_cold_restart_timeout = 1
+        pxelinux_cfg.default_undoubted_hw_start_timeout = 1
+        hw_node.ipmitool_bin = 'echo'
+        node = network_manager.get_node_by_name('test_local_node')
+        # check provision failure in salt
+        hw_node.sls_list = ['setup_hsm']
+        with self.assertRaises(Exception):
+            pxelinux_cfg.provision_node(node, 'sle-15.1')
+        hw_node.sls_list = []
+        # provision without failure
+        self.assertEqual(
+            pxelinux_cfg.provision_node(node, 'sle-15.1'), 1)
+        # check provision need reboot
+        node['provision_need_reboot'] = 'no'
+        self.assertEqual(
+            pxelinux_cfg.provision_node(node, 'sle-15.1'), 1)
+        node['provision_need_reboot'] = 'yes'
+        self.assertEqual(
+            pxelinux_cfg.provision_node(node, 'sle-15.1'), 2)
 
 
 if __name__ == '__main__':

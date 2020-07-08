@@ -54,6 +54,17 @@
     "bmc_ip_type":  "static",
     "role":         "client",
     "comment":      ""
+  },
+  {
+    "node":         "test_local_node",
+    "mac":          "AA:bb:cc:dd:00:76",
+    "ip":           "127.0.0.1",
+    "ip_type":      "dynamic",
+    "bmc_mac":      "aa:bb:cc:dd:00:16",
+    "bmc_ip":       "1.2.3.116",
+    "bmc_ip_type":  "static",
+    "role":         "client",
+    "comment":      ""
   }
  ]
 }

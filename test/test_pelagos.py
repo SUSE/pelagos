@@ -25,6 +25,8 @@ class pelagosTest(unittest.TestCase):
 
     @classmethod
     def setUpClass(self):
+        shutil.rmtree(test_log_dir, ignore_errors=True)
+        os.makedirs(test_log_dir, exist_ok=True)
         threaded_logging.log_prefix = test_log_dir
         threaded_logging.config_root_logger()
 
@@ -32,9 +34,6 @@ class pelagosTest(unittest.TestCase):
         network_manager.data_file = 'test/test_network_cfg.json'
         flask_tasks.clean_call_timeout_sec = 1
         flask_tasks.data_life_time_sec = 300
-        # set flask sent trace to console
-        pelagos.app.testing = True
-        self.app = pelagos.app.test_client()
 
         shutil.rmtree(test_pxelinux_cfg_root_dir, ignore_errors=True)
         os.makedirs(test_pxelinux_cfg_dir, exist_ok=True)
@@ -45,8 +44,10 @@ class pelagosTest(unittest.TestCase):
         pxelinux_cfg.pxelinux_cfg_dir = test_pxelinux_cfg_dir
         pxelinux_cfg.tftp_cfg_dir = test_pxelinux_cfg_root_dir
 
-        shutil.rmtree(test_log_dir, ignore_errors=True)
-        os.makedirs(test_log_dir, exist_ok=True)
+        shutil.rmtree(test_log_dir+'/*', ignore_errors=True)
+
+        pelagos.app.testing = True
+        self.app = pelagos.app.test_client()
 
     @classmethod
     def tearDownClass(self):

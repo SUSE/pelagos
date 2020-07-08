@@ -53,13 +53,22 @@ It described in json file (# xxx means comment and should removed):
     "domain": "a.b.c.de"
     "nodes":[
         {
-            "node":        "provisioner.a.b.c", # fqdn
-            "ip_type":     "unmanaged", # configuration generator ignore that address
+            "node":      "provisioner.a.b.c", # node name or fqdn, is used
+                                                # also for salt call after
+                                                # provisining
+            "boot_node": "node or fqdn", # ip name is used for boot if the
+                                         # name is used only for boot and 
+                                         # the name is not used in cluster and
+                                         # teuthology networking
+            "ip_type":     "unmanaged", # configuration generator ignore that
+                                        #address
             "bmc_ip_type": "unmanaged", # ditto
-            "role":        "",
+            "role":        "client", # not used now, reserved
             "comment":     "dns, dhcp, tftp",
-            "t_machine_type": "",
-            "t_exclude": "yes" #ignore for teuthology node description generation
+            "t_machine_type": "", # teuthology 'machine type' label
+            "t_exclude": "yes" # ignore for teuthology node description generation
+            "provision_need_reboot": "yes" # if reboot after provision is needed
+
         },
         {
             "node":         "client-1.a.b.c",
