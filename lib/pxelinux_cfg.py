@@ -215,7 +215,9 @@ def provision_node_simulate_fast(node, os_id):
 
 def provision_node_simulate(node, os_id):
     logging.debug("********************** simulating 20 sec provisioning")
-    time.sleep(20)
+    for i in range(1, 20):
+        logging.debug('sleep, n=%s' % i)
+        time.sleep(1)
     return 1
 
 

@@ -47,12 +47,13 @@ class pelagosTest(unittest.TestCase):
         shutil.rmtree(test_log_dir+'/*', ignore_errors=True)
 
         pelagos.app.testing = True
+        pelagos.app.simulate_mode = 'fast'
         self.app = pelagos.app.test_client()
 
     @classmethod
     def tearDownClass(self):
         flask_tasks.stop_cleanup = True
-        # timeout for cleanup thread stop
+        logging.debug('5s timeout for cleanup thread stop')
         time.sleep(5)
 
     def tearDown(self):
@@ -201,7 +202,6 @@ class pelagosTest(unittest.TestCase):
         hw_node.ipmi_user = 'nouser'
         pxelinux_cfg.wait_node_is_ready_timeout = 5
         pxelinux_cfg.default_undoubted_hw_start_timeout = 1
-
         location, id = self.do_flask_task_request(
             '/node/provision',
             {'os': os_id,
@@ -292,10 +292,8 @@ class pelagosTest(unittest.TestCase):
     def test_pxe_provision_node_threaded(self):
         (os_id, test_dir) = self.prepare_correct_boot_env()
 
-        # 3 items in queue
-        # pxelinux_cfg.provision_node = \
-        #    networkControllerServerTest.provision_node_mock(
-        #        "test_node", "oem-sle_15sp1-0.1.1")
+        # start 3 items in queue
+        # check that executed tasks are passed
         location1, id1 = self.do_flask_task_request(
             '/node/provision',
             {'os': os_id,
@@ -341,6 +339,87 @@ class pelagosTest(unittest.TestCase):
         self.assertRegex(statuses[id1]['status'], 'done')
         self.assertRegex(status22['node']['ip'], "1.2.3.14")
         self.assertRegex(status23['node']['ip'], "1.2.3.15")
+
+    def test_provision_thread_stop(self):
+        (os_id, test_dir) = self.prepare_correct_boot_env()
+        pelagos.app.simulate_mode = 'medium'
+        # scenario:
+        #  - start thread
+        #  - stop theread
+        #  - check that it stopped via listing
+        #
+
+        location, id1 = self.do_flask_task_request(
+            '/node/provision',
+            {'os': os_id,
+             'node': 'test_node'},
+            'provision for dismissing ')
+        # do some untis testing of flask_tasks here because
+        # we cannot test without structure preprared by flask
+        import flask_tasks
+        from flask_tasks import NoTaskException, NoThreadException
+
+        with self.assertRaises(NoTaskException) as task_exp:
+            flask_tasks.find_taks_by_node('not_existed_node')
+
+        with self.assertRaises(NoTaskException) as thr_exp:
+            flask_tasks.find_thread_by_task('123321')
+        test_task = flask_tasks.find_taks_by_node('test_node')
+        self.assertEqual(id1, test_task, 'Correct task found')
+
+        tid, tobj = flask_tasks.find_thread_by_task(test_task)
+
+        self.assertTrue(tobj.is_alive())
+
+        self.assertEqual(flask_tasks.tasks[test_task]['node'],
+                         'test_node', 'check found node')
+        self.assertEqual(flask_tasks.tasks[test_task]['stopped'],
+                         False, 'check stopped status')
+        response = self.app.post('tasks/node/dismiss',
+                                 data={'node': 'test_node'})
+        logging.debug(response.get_data().decode(sys.getdefaultencoding()))
+
+        self.assertFalse(tobj.is_alive())
+        self.assertEqual(flask_tasks.tasks[test_task]['stopped'],
+                         True, 'check stopped status')
+        response_after_stop = self.app.get(location)
+        self.assertRegex(response_after_stop.get_data(as_text=True),
+                         r'Stop\ provisioning\ thread\ by\ request')
+
+    def test_reprovision_node(self):
+        (os_id, test_dir) = self.prepare_correct_boot_env()
+        pelagos.app.simulate_mode = 'medium'
+        # scenario:
+        # - start node provision #1
+        # - start node provision #2
+        # - start node provision #2 for other node
+        # - check provision #1 was dismissed, #2 and #3 alive
+
+        location1, task_id1 = self.do_flask_task_request(
+            '/node/provision',
+            {'os': os_id,
+             'node': 'test_node'},
+            'provision #1 ')
+        location2, task_id2 = self.do_flask_task_request(
+            '/node/provision',
+            {'os': os_id,
+             'node': 'test_node'},
+            'provision #2 ')
+        location3, task_id3 = self.do_flask_task_request(
+            '/node/provision',
+            {'os': os_id,
+             'node': 'test_node'},
+            'provision #3 ')
+        response_stopped = self.app.get(location1)
+        self.assertRegex(response_stopped.get_data(as_text=True),
+                         r'Stop\ provisioning\ thread\ by\ request',
+                         'task #1 should be ended')
+        response_active = self.app.get(location2)
+        self.assertEqual(response_active.status, '202 ACCEPTED',
+                         'task #2 should be alive')
+        response3 = self.app.get(location2)
+        self.assertEqual(response3.status, '202 ACCEPTED',
+                         'task #3 should be alive')
 
     # utility functions for tests
     def do_flask_task_request(self,
