@@ -176,11 +176,11 @@ as user on build node:
 
 ## Configuration
 
-For manual node configuration could be used salt commands:
+For manual provisioned node configuration could be used salt commands:
 
     sudo -u salt salt-ssh -i --roster-file deploy.roster --key-deploy --passwd <password> -c . '<node name without domain>' state.apply setup_hsm
 
-## Provision
+## Provisioning
 
 Warning! curl commands is subject for change
 
@@ -209,6 +209,22 @@ Provisioning status could be observed
 for permanent switch os(with no version) install to latest image as default
 
     ... TBD ...
+
+## Reprovisioning and dissmissing provision
+
+Pelagos do some actions after provision start: change boot files,
+observer conman log files, trying to connect to a target node and so on,
+in some cases a provision thread could decide to reboot a node. All that
+activity could be problematic for a concurrent provision and re-provision. 
+
+For solving it, added a special functionality for a dismissing provision for
+specific node. It prevents 2 and more simultaneous provisions for one node.
+For REST 'node/provision' the functionality call automatically.
+
+Also, there is special call '/node/dismiss' if a user want to do it explicitly.
+Parameters are: 
+* 'node' - a node name from the configuration file which should be dismissed
+    from control a thread
 
 ## Test execution
 
