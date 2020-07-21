@@ -142,7 +142,6 @@ def async_task(target_func):
                         current_app.handle_http_exception(e)
                     traceback.print_exc(file=sys.stdout)
                 except Exception as e:
-                    logging.debug("Caught Exception:" + str(e))
                     logging.error("Caught Exception:%s" % sys.exc_info()[1])
                     # The function raised an exception, so we set a 500 error
                     tasks[task_id]['rv'] = InternalServerError()
@@ -257,7 +256,8 @@ def get_log(task_id):
 def find_taks_by_node(node_id):
     for t in tasks.copy().keys():
         logging.debug('Check node:' + str(tasks[t]))
-        if 'node' in tasks[t].keys() and tasks[t]['node'] == node_id:
+        if('node' in tasks[t] and tasks[t]['node'] == node_id and
+           'rv' not in tasks[t] and tasks[t]['started'] == True):
             return t
     raise NoTaskException('Cannot find task for "%s" node' % node_id)
 
@@ -268,7 +268,8 @@ def find_thread_by_task(task_id):
     for tid, tobj in threading._active.copy().items():
         logging.debug('Check TID %s' % str(tid))
         if tobj is tasks[task_id]['task']:
-            logging.debug('TID set %s' % str(tid))
+            logging.debug('Found TID  "%s" for task "%s"' %
+                          (str(tid), task_id))
             return tid, tobj
     raise NoThreadException('No thread for task "%s" was found' % task_id)
 
@@ -276,6 +277,7 @@ def find_thread_by_task(task_id):
 def stop_thread_for_node(node_id):
     task = find_taks_by_node(node_id)
     thr_id, thr_obj = find_thread_by_task(task)
+    logging.debug('Generate StopThread in thread %s' % str(thr_id))
     res = ctypes.pythonapi.PyThreadState_SetAsyncExc(
         ctypes.c_long(thr_id), ctypes.py_object(StopThread))
     if res == 0:
@@ -288,6 +290,7 @@ def stop_thread_for_node(node_id):
         tasks[task]['task'].join()
         tasks[task]['stopped'] = True
         logging.debug('Exception raised successfully')
+        return task
 
 
 # node - should be node id in configuration file
@@ -297,7 +300,7 @@ def dismiss_node():
     logging.info('Dismissing provision task for node "{}"'.format(node_id))
     # logging.debug(tasks)
     try:
-        stop_thread_for_node(node_id)
+        task = stop_thread_for_node(node_id)
     except CannotDismissNode as cdn_exc:
         msg = 'Caught CannotDismissNode %s' % cdn_exc
         logging.info(msg)
@@ -315,5 +318,5 @@ def dismiss_node():
         logging.error(msg)
         abort(501, msg)
 
-    return jsonify({'status': 'dedicated boot record removed',
+    return jsonify({'stopped_task': task,
                     'node': node_id})

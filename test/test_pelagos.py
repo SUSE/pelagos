@@ -392,7 +392,7 @@ class pelagosTest(unittest.TestCase):
         # scenario:
         # - start node provision #1
         # - start node provision #2
-        # - start node provision #2 for other node
+        # - start node provision #3 for other node
         # - check provision #1 was dismissed, #2 and #3 alive
 
         location1, task_id1 = self.do_flask_task_request(
@@ -408,7 +408,7 @@ class pelagosTest(unittest.TestCase):
         location3, task_id3 = self.do_flask_task_request(
             '/node/provision',
             {'os': os_id,
-             'node': 'test_node'},
+             'node': 'test_node2'},
             'provision #3 ')
         response_stopped = self.app.get(location1)
         self.assertRegex(response_stopped.get_data(as_text=True),
@@ -439,7 +439,7 @@ class pelagosTest(unittest.TestCase):
         # timeout for provision negative tests
         time.sleep(1)
         response_1 = self.app.get(location)
-        logging.debug(prefix + "next level response headers")
+        logging.debug(prefix + " next level response headers")
         logging.debug(response_1.headers)
         self.assertEqual(response_1.status, next_level_status, prefix)
         return location, taskid

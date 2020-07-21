@@ -1,5 +1,6 @@
-
+from flask_tasks import StopThread
 from node import LocalNode
+
 import logging
 import network_manager
 import re
@@ -201,7 +202,9 @@ def wait_node_is_ready(node,
                                 attempts=port_lookup_attempts)
             logging.debug("Connected to node %s " % node['node'])
             return True
-        except:
+        except StopThread as st:
+            raise StopThread
+        except Exception as es:
             logging.debug("Node {} have not started in timeout {}".format(
                 get_provision_ip(node), port_lookup_timeout))
 
