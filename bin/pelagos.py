@@ -2,7 +2,7 @@
 
 from flask import Flask, jsonify, abort, request
 from flask_tasks import tasks_bp as tasks_blueprint
-from flask_tasks import async_task, tasks
+from flask_tasks import async_task, tasks, StopThread
 
 import argparse
 import sys
@@ -37,7 +37,7 @@ app = Flask('pelagos')
 # Register async tasks support
 app.register_blueprint(tasks_blueprint, url_prefix='/tasks')
 app.ver_name = 'pelagos'
-app.version = '0.0.4'
+app.version = '0.0.5'
 app.simulate_mode = ''
 
 
@@ -106,12 +106,7 @@ def check_image(os):
     os_id = _check_input_os(os)
     return jsonify({'os': os_id})
 
-#
-# @app.route('/node/refresh_menu', methods=['GET'])
-# def refresh_menu():
-#    app.logger.info('Refresh menu. TBI')
 
-# PUT
 @app.route('/node/bootrecord/<string:node_id>/<string:os>', methods=['GET'])
 def bootrecord_node(node_id, os):
     app.logger.info('Set boot record for node {}  with OS {}'.
@@ -124,19 +119,19 @@ def bootrecord_node(node_id, os):
                     'os': os_id
                     })
 
-# DEL
+
 @app.route('/node/rmbootrecord/<string:node_id>', methods=['GET'])
 def rmbootrecord_node(node_id):
-    app.logger.info('Remove boot record for node {}'.format(node_id))
+    app.logger.info('Removing boot record for node {}'.format(node_id))
     node = _check_input_node(node_id)
     pxelinux_cfg.cleanup_tftp_dir(node)
     return jsonify({'status': 'dedicated boot record removed',
                     'node': node
                     })
 
-# PATCH
-# os - PATCH parameter
-# node_id - parameter from url
+
+# os - string parameter, should be same as name of directory in tftp dir
+# node - should be node id in configuration file
 @app.route('/node/provision', methods=['POST'])
 @async_task
 def provision_node():
@@ -166,6 +161,10 @@ def provision_node():
             pxelinux_cfg.provision_node_simulate(node, os)
         else:
             pxelinux_cfg.provision_node(node, os, extra_sls=sls.split())
+    except StopThread as st:
+        msg_st = 'Stop provisioning thread by request'
+        app.logger.debug(msg_st)
+        abort(410, msg_st)
     except hw_node.TimeoutException as tmt_excp:
         msg_tmt_excp = 'Caught TimeoutException %s' % tmt_excp
         app.logger.info(msg_tmt_excp)

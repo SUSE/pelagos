@@ -123,9 +123,6 @@ def get_boot_record_for_os(node, os_id):
     else:
         image = ''
         # split str same as 'sle-15.1-0.1.1-29.1' to version
-        print('****************************')
-        print(get_os_dir(os_id))
-        print('----------------------------')
         version = \
             re.search(r'(\w+)\-(\d+)\.(\d+)\-(\d+\.\d+\.\d+)\-(\d+\.\d+)',
                       get_os_dir(os_id))
@@ -209,21 +206,25 @@ def refresh_symlinks(os_id, ver):
 
 def provision_node_simulate_fast(node, os_id):
     logging.debug("********************** simulating fast provisioning")
-    time.sleep(3)
+    for i in range(1, 10):
+        logging.debug('sleep, n=%s' % i)
+        time.sleep(1)
     return 1
 
 
 def provision_node_simulate(node, os_id):
     logging.debug("********************** simulating 20 sec provisioning")
-    time.sleep(20)
+    for i in range(1, 20):
+        logging.debug('sleep, n=%s' % i)
+        time.sleep(1)
     return 1
 
 
 def provision_node_simulate_failure(node, os_id):
     logging.debug("********************** simulating provisioning timeout")
     # timeout is needed for avoid race condition in thread start
-    time.sleep(2)
-    raise TimeoutException("A node have not started in timeout (test mode)")
+    time.sleep(3)
+    raise Exception("A node have not started in timeout (test mode)")
 
 
 def provision_node(node, os_id, extra_sls=[]):

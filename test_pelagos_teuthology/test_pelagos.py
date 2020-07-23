@@ -10,10 +10,13 @@ import json
 import shutil
 import os
 
-test_config = dict(pelagos=dict(
-    endpoint='http://localhost:5000/',
-    machine_types='type1,type2',
-))
+test_config = dict(
+    pelagos=dict(
+        endpoint='http://localhost:5000/',
+        machine_types='type1,type2',
+        ),
+    lab_domain=''
+)
 
 test_pxelinux_cfg_root_dir = '/tmp/tftp'
 test_pxelinux_cfg_dir = test_pxelinux_cfg_root_dir + '/pxelinux.cfg'

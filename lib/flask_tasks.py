@@ -2,9 +2,10 @@
 # mostly copied from https://github.com/miguelgrinberg/flack/commit/0c372464b341a2df60ef8d93bdca2001009a42b5?diff=unified
 # video https://www.youtube.com/watch?v=tdIIJuPh3SI&feature=youtu.be
 #
-import os
+import ctypes
 import json
 import logging
+import os
 import sys
 import threading
 import time
@@ -24,11 +25,32 @@ logging.basicConfig(format='%(asctime)s | %(name)s | %(message)s',
 
 tasks_bp = Blueprint('tasks', __name__)
 tasks = {}
+tasks_mutex = threading.Lock()
 testing = False
 data_life_time_sec = 12 * 60 * 60
 clean_call_timeout_sec = 60
 cleanup_thread = None
 stop_cleanup = False
+
+
+class NoTaskException(Exception):
+    """Raised when no task found/detected"""
+    pass
+
+
+class NoThreadException(Exception):
+    """Raised when thread cannot be found"""
+    pass
+
+
+class CannotDismissNode(Exception):
+    """Raised when node dismiss failed"""
+    pass
+
+
+class StopThread(Exception):
+    """Raised when node dismiss failed"""
+    pass
 
 
 def timestamp():
@@ -66,12 +88,14 @@ def before_first_request():
             # Only keep tasks that are running or finished less than
             # data_life_time_sec ago.
             current_time = timestamp()
+            tasks_mutex.acquire()
             cleanup_list = [i for i, t in tasks.items()
                             if 'endtime' in t and
                             t['endtime'] > -1 and
                             current_time - t['endtime'] > data_life_time_sec]
             for i in cleanup_list:
                 os.remove(tasks.pop(i)['log_file'])
+            tasks_mutex.release()
             time.sleep(clean_call_timeout_sec)
 
     logging.debug('Run cleanup thread')
@@ -90,9 +114,19 @@ def async_task(target_func):
             # Create a request context similar to that of the original request
             # so that the task can have access to flask.g, flask.request, etc.
             with app.request_context(environ):
+                node_id = request.form['node']
                 try:
+                    logging.debug('Dismiss node %s' % node_id)
+                    try:
+                        stop_thread_for_node(node_id)
+                    except NoTaskException:
+                        logging.debug('Thread for node is not found, continue')
+                    except NoThreadException:
+                        logging.debug('Node is not found by task, continue')
                     # Run the route function and record the response
                     logging.debug("Executing target function")
+                    tasks[task_id]['node'] = node_id
+                    tasks[task_id]['os'] = request.form['os']
                     tasks[task_id]['thread_name'] = threading.Thread.getName(
                         threading.current_thread())
                     tasks[task_id]['log_file'] = threaded_logging. \
@@ -100,6 +134,7 @@ def async_task(target_func):
                     tasks[task_id]['starttime'] = timestamp()
                     tasks[task_id]['endtime'] = -1
                     tasks[task_id]['started'] = True
+                    tasks[task_id]['stopped'] = False
                     tasks[task_id]['rv'] = target_func(*args, **kwargs)
                 except HTTPException as e:
                     logging.debug("Caught http exception:" + str(e))
@@ -107,10 +142,14 @@ def async_task(target_func):
                         current_app.handle_http_exception(e)
                     traceback.print_exc(file=sys.stdout)
                 except Exception as e:
-                    logging.debug("Caught exception:" + str(e))
+                    logging.error("Caught Exception:%s" % sys.exc_info()[1])
                     # The function raised an exception, so we set a 500 error
                     tasks[task_id]['rv'] = InternalServerError()
                     traceback.print_exc(file=sys.stdout)
+                except:
+                    tasks[task_id]['rv'] = InternalServerError()
+                    msg = "Oops in flask_task! %s occured." % sys.exc_info()[1]
+                    logging.error(msg)
                 finally:
                     # We record the time of the response, to help in garbage
                     # collecting old tasks
@@ -121,9 +160,12 @@ def async_task(target_func):
         task_id = uuid.uuid4().hex
 
         # Record the task, and then launch it
+        tasks_mutex.acquire()
         tasks[task_id] = {'task': threading.Thread(
             target=task, args=(current_app._get_current_object(),
                                request.environ))}
+        tasks_mutex.release()
+        tasks[task_id]['task'].daemon = True
         tasks[task_id]['task'].start()
         # wait is needed for case when many requests is done
         # and new thread starting took time
@@ -132,7 +174,7 @@ def async_task(target_func):
             i = i + 1
             if 'started' in tasks[task_id]:
                 break
-            time.sleep(1)
+            time.sleep(3)
         if 'started' not in tasks[task_id]:
             tasks[task_id]['rv'] = InternalServerError(
                 'Too long async thread starts')
@@ -162,6 +204,9 @@ def get_status(id):
                          'StartTime': task['starttime'],
                          'EndTime': task['endtime'],
                          'TaskID': id,
+                         'Node': task['node'],
+                         'OS': task['os'],
+                         'stopped': task['stopped'],
                          'status': 'not completed'}
     return task['rv']
 
@@ -176,12 +221,15 @@ def get_statuses():
     # logging.info('List current active provisions')
     # logging.debug("tasks:")
     res = dict()
-    for task in tasks:
+    for task in tasks.copy():
         # logging.debug(tasks[task])
         # logging.debug(tasks[task]['starttime'])
         t = dict()
         t['start_time'] = tasks[task]['starttime']
         t['end_time'] = tasks[task]['endtime']
+        t['node'] = tasks[task]['node']
+        t['os'] = tasks[task]['os']
+        t['stopped'] = tasks[task]['stopped']
         if 'rv' in tasks[task]:
             rv = tasks[task]['rv']
             t['rv'] = json.loads(
@@ -205,6 +253,70 @@ def get_log(task_id):
     return jsonify({'TaskID': task_id, 'LogData': data})
 
 
-@tasks_bp.route('/cancel/<id>', methods=['GET'])
-def cancel_provision(node_id):
-    abort(404, "No node [{}] found".format(node_id))
+def find_taks_by_node(node_id):
+    for t in tasks.copy().keys():
+        logging.debug('Check node:' + str(tasks[t]))
+        if('node' in tasks[t] and tasks[t]['node'] == node_id and
+           'rv' not in tasks[t] and tasks[t]['started'] == True):
+            return t
+    raise NoTaskException('Cannot find task for "%s" node' % node_id)
+
+
+def find_thread_by_task(task_id):
+    if not(task_id in tasks.keys()):
+        raise NoTaskException('No task "%s" found' % task_id)
+    for tid, tobj in threading._active.copy().items():
+        logging.debug('Check TID %s' % str(tid))
+        if tobj is tasks[task_id]['task']:
+            logging.debug('Found TID  "%s" for task "%s"' %
+                          (str(tid), task_id))
+            return tid, tobj
+    raise NoThreadException('No thread for task "%s" was found' % task_id)
+
+
+def stop_thread_for_node(node_id):
+    task = find_taks_by_node(node_id)
+    thr_id, thr_obj = find_thread_by_task(task)
+    logging.debug('Generate StopThread in thread %s' % str(thr_id))
+    res = ctypes.pythonapi.PyThreadState_SetAsyncExc(
+        ctypes.c_long(thr_id), ctypes.py_object(StopThread))
+    if res == 0:
+        logging.error('Exception raise failure, no target found')
+        raise CannotDismissNode('Cannot find thread for raising exception')
+    elif res > 1:
+        logging.error('Too many thread found')
+        raise CannotDismissNode('')
+    else:
+        tasks[task]['task'].join()
+        tasks[task]['stopped'] = True
+        logging.debug('Exception raised successfully')
+        return task
+
+
+# node - should be node id in configuration file
+@tasks_bp.route('/node/dismiss', methods=['POST'])
+def dismiss_node():
+    node_id = request.form['node']
+    logging.info('Dismissing provision task for node "{}"'.format(node_id))
+    # logging.debug(tasks)
+    try:
+        task = stop_thread_for_node(node_id)
+    except CannotDismissNode as cdn_exc:
+        msg = 'Caught CannotDismissNode %s' % cdn_exc
+        logging.info(msg)
+        abort(503, msg)
+    except NoTaskException as ntask_exp:
+        msg = 'Caught NoTaskException %s' % ntask_exp
+        logging.info(msg)
+        abort(404, msg)
+    except NoThreadException as nthr_exp:
+        msg = 'Caught NoThreadException %s' % nthr_exp
+        logging.info(msg)
+        abort(404, msg)
+    except:
+        msg = "Oops! In dismiss_node  %s occured." % sys.exc_info()[1]
+        logging.error(msg)
+        abort(501, msg)
+
+    return jsonify({'stopped_task': task,
+                    'node': node_id})
