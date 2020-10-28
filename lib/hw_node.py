@@ -19,7 +19,7 @@ salt_cfg_dir = '.'
 sls_list = []
 default_port_lookup_timeout = 5
 default_port_lookup_attempts = 6
-default_conman_line_max_age = 700
+default_conman_line_max_age = 180
 default_cold_restart_timeout = 30
 
 
