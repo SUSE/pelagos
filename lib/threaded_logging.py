@@ -87,3 +87,11 @@ def start(thread_name=None):
 
     logging.getLogger().addHandler(log_handler)
     return log_handler
+
+
+def stop(handler):
+    if handler is None:
+        return False
+    logging.getLogger().removeHandler(handler)
+    handler.flush()
+    handler.close()

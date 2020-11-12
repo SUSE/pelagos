@@ -234,6 +234,9 @@ Unit tests are in 'test' subdir and could be executed via
 
     python test/test_pelagos.py
 
+or for specific test case
+   python test/test_pelagos.py pelagosTest.test_provision_log_cleanup 
+
 ### Integration test
 
 Teuthology integration could be tested via  executing 2 commands:

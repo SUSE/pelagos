@@ -137,7 +137,6 @@ def rmbootrecord_node(node_id):
 def provision_node():
     # start logging for new thread to file ASAP
     # cleanup in flask 'clean_old_taks'
-    threaded_logging.start()
     if request.method != 'POST':
         return abort(405, "Use POST method")
     app.logger.info("Data for provision: [%s]" % str(

@@ -131,6 +131,7 @@ def async_task(target_func):
                         threading.current_thread())
                     tasks[task_id]['log_file'] = threaded_logging. \
                         get_log_name(tasks[task_id]['thread_name'])
+                    tasks[task_id]['log_handler'] = threaded_logging.start()
                     tasks[task_id]['starttime'] = timestamp()
                     tasks[task_id]['endtime'] = -1
                     tasks[task_id]['started'] = True
@@ -155,6 +156,7 @@ def async_task(target_func):
                     # collecting old tasks
                     tasks[task_id]['status'] = 'done'
                     tasks[task_id]['endtime'] = timestamp()
+                    threaded_logging.stop(tasks[task_id]['log_handler'])
                     logging.debug("target function completed")
         # Assign an id to the asynchronous task
         task_id = uuid.uuid4().hex

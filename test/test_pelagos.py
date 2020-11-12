@@ -281,6 +281,10 @@ class pelagosTest(unittest.TestCase):
         self.assertRegex(log_data.get_data(as_text=True),
                          r'Found\s+os\s+\[sle-15.1-0.1.1-29.1\]',
                          'Chek log content')
+        self.assertEqual(flask_tasks.tasks[tid]['log_handler'],
+                        logging.getLogger().handlers[2]
+                        )
+
         time.sleep(15)
         logging.debug("Cleanup should happens, check it")
         self.assertFalse(tid in flask_tasks.tasks)
@@ -288,6 +292,8 @@ class pelagosTest(unittest.TestCase):
         removed_log_result = self.app.get('/tasks/log/'+tid)
         self.assertEqual(removed_log_result.status,
                          '404 NOT FOUND', 'Log removed')
+        self.assertEqual(len(logging.getLogger().handlers),2)
+
 
     def test_pxe_provision_node_threaded(self):
         (os_id, test_dir) = self.prepare_correct_boot_env()
